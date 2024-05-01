@@ -35,7 +35,9 @@ jobs:
           key: fonts
 
       - name: Generate Annunciators
-        run: python3 gen_annunciators.py
+        run: |
+          pip install -r requirements.txt
+          python3 gen_annunciators.py
 
       - name: Fetch Fonts
         if: steps.cache-fonts.outputs.cache-hit != 'true'
