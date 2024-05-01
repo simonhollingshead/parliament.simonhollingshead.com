@@ -1,1 +1,1 @@
-minify-html
+minify-html == 0.15.0
