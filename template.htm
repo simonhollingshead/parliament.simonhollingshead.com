@@ -1,0 +1,548 @@
+<html>
+
+<head>
+    <title>House of _tpl_house_precap Annunciator</title>
+    <style type="text/css">
+        @font-face {
+            font-family: "Aktiv Grotesk Bold";
+            src: url("https://db.onlinewebfonts.com/t/cc0c83f1e7a5a34cf6985d861f0b2e1c.eot");
+            src: url("https://db.onlinewebfonts.com/t/cc0c83f1e7a5a34cf6985d861f0b2e1c.eot?#iefix")format("embedded-opentype"),
+                url("https://db.onlinewebfonts.com/t/cc0c83f1e7a5a34cf6985d861f0b2e1c.woff2")format("woff2"),
+                url("https://db.onlinewebfonts.com/t/cc0c83f1e7a5a34cf6985d861f0b2e1c.woff")format("woff"),
+                url("https://db.onlinewebfonts.com/t/cc0c83f1e7a5a34cf6985d861f0b2e1c.ttf")format("truetype"),
+                url("https://db.onlinewebfonts.com/t/cc0c83f1e7a5a34cf6985d861f0b2e1c.svg#Aktiv Grotesk Bold")format("svg");
+        }
+
+        html,
+        body {
+            background-color: black;
+            padding: 0;
+            margin: 0;
+            height: 100%;
+        }
+
+        #resizable {
+            align-items: center;
+            display: flex;
+            justify-content: center;
+            height: 100%;
+            width: 100%;
+            container-type: size;
+        }
+
+        #fixed {
+            container-type: inline-size;
+            aspect-ratio: 4/3;
+            width: 75%;
+            background-color: _tpl_house_hex;
+            font-family: "Aktiv Grotesk Bold";
+            color: #EBE9E8;
+            display: grid;
+            grid-template-columns: 1% 16.5% 65% 16.5% 1%;
+            grid-template-rows: 2% 86% 10% 2%;
+            scale: calc(16/12) 1;
+            /* I want the vibe of a 4:3 dashboard stretched 16:9. */
+        }
+
+        @container (min-aspect-ratio: 16/9) {
+            #fixed {
+                width: auto;
+                height: 100%;
+            }
+        }
+
+        #toptext {
+            grid-area: 2/2/3/5;
+        }
+
+        #middletext {
+            grid-area: 2/2/3/5;
+            align-self: center;
+        }
+
+        #bottomtext {
+            grid-area: 2/2/3/5;
+            align-self: end;
+        }
+
+        div.textlinecenter {
+            text-align: center;
+        }
+
+        div.textlineright {
+            text-align: right;
+        }
+
+        .sizemember {
+            font-size: 7cqw;
+            /* This is difficult, names are very varied in size. */
+        }
+
+        .sizedivision {
+            font-size: 15cqw;
+        }
+
+        .size150 {
+            font-size: 15cqw;
+            /* 15.5cqw is too big */
+        }
+
+        .size140 {
+            font-size: 14.5cqw;
+            /* 15cqw is too big */
+        }
+
+        .size130 {
+            font-size: 15cqw;
+        }
+
+        .size120 {
+            font-size: 6cqw;
+            /* 7cqw is too big */
+        }
+
+        .size110 {
+            font-size: 6.5cqw;
+        }
+
+        .size100 {
+            font-size: 5cqw;
+            /* 5.5cqw is too big */
+        }
+
+        .size90 {
+            font-size: 5.5cqw;
+        }
+
+        .size80 {
+            font-size: 5.5cqw;
+        }
+
+        .size70 {
+            font-size: 5cqw;
+            /* 5.5cqw is too big */
+        }
+
+        .sizebottom {
+            /* Frustratingly when everything is uppercase, vertical alignment
+            looks wrong because of the lack of characters with descenders. */
+            font-size: 5.5cqw;
+            translate: 0 0.75cqw;
+        }
+
+        #speakerclock {
+            grid-area: 3/2/4/3;
+            display: grid;
+            align-self: end;
+        }
+
+        #topnoticearea {}
+
+        #bottomnoticearea {
+            grid-area: 3/3/4/4;
+            background-color: _tpl_scroll_hex;
+            display: grid;
+            align-self: end;
+            padding: 0 1cqw;
+        }
+
+        #currenttime {
+            grid-area: 3/4/4/5;
+            display: grid;
+            align-self: end;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="resizable">
+        <div id="fixed">
+            <div id="toptext"></div>
+            <div id="middletext"></div>
+            <div id="bottomtext"></div>
+            <div id="speakerclock">
+                <div id="speakerclocktext" class="sizebottom textlinecenter"></div>
+            </div>
+            <!--<div id="bottomnoticearea">
+                <span class="sizebottom">NOTICES FROM LORDS</span>
+            </div>-->
+            <div id="currenttime">
+                <div id="clocktext" class="sizebottom textlinecenter"></div>
+            </div>
+        </div>
+    </div>
+</body>
+
+<script>
+    // State
+    last_received_event = Date.now();
+    reload_if_older_than = 60000  //ms
+    current_shown = {
+        // We are not yet showing the INIT slide (-1).
+        "message_id": -2,
+        // NOT the same as carousel order or slide ID, this is the actual
+        // position in sequence order.
+        "slideIndex": 0,
+        "shouldAdvance": false,
+    };
+    slide_advance_timer_id = null;
+    clock_offset_from_actual_time = null;
+    iters_since_last_clock_offset_fetch = 0;
+    clock_offset_refetch_iters = 3600;
+    latest_message = {  // Dummy message.
+        "annunciatorDisabled": false,
+        "id": -1,
+        "slides": [
+            {
+                "lines": [],
+                "type": "UNOFFICIAL_API_VALUE_BLANK_SLIDE",
+                "carouselOrder": 1,
+                "carouselDisplaySeconds": 20,
+                "speakerTime": null,
+                "id": 0
+            }
+        ],
+        "scrollingMessages": [],
+        "isSecurityOverride": false,
+        "showCommonsBell": false,
+        "showLordsBell": false,
+    }
+
+    // Helpers
+    RS = String.fromCharCode(30);
+    function buildMessage(record_array) {
+        // Collapse the list into a single string with RS separators
+        // between each element and also a trailing RS at the end.
+        return record_array.reduce(
+            (out, el) => out += JSON.stringify(el) + RS,
+            ""
+        );
+    }
+
+    // The socket can be constructed and polled even before the page assets
+    // have loaded.  (Yes, they really have misspelled Annunciator as
+    // Anunnciator!)
+    const parliamentSocket = new WebSocket("wss://now.parliament.uk/anunnciatorhub");
+    parliamentSocket.addEventListener("open", doHandshake);
+    parliamentSocket.addEventListener("message", consumeEvent);
+
+    // Start the loops when the page finishes loading (i.e. when fonts are available).
+    window.addEventListener(
+        'load',
+        () => {
+            setInterval(RedrawSlide, 1000);
+            setInterval(WatchHealth, reload_if_older_than);
+            setInterval(DrawClock, 1000);
+        }
+    );
+
+    async function doHandshake(event) {
+        parliamentSocket.send(buildMessage([{ "protocol": "json", "version": 1 }]));
+        // For some reason, even if we subscribe to only one, we get both, so we have to post-filter anyway.
+        parliamentSocket.send(buildMessage([
+            { "arguments": [0], "streamIds": [], "target": "sendCurrentSlide", "type": 1 },
+            { "arguments": [1], "streamIds": [], "target": "sendCurrentSlide", "type": 1 },
+        ]));
+    }
+
+    async function consumeEvent(event) {
+        last_received_event = Date.now();
+        for (record of event.data.split(RS)) {
+            if (record == "" || record == "{}") { continue; }
+            jsonRecord = JSON.parse(record);
+
+            // Keepalive.  Respond with our own keepalive.
+            if (jsonRecord.type == 6) {
+                parliamentSocket.send(buildMessage([{ type: 6 }]));
+                continue;
+            }
+
+            if (jsonRecord.type == 1) {
+                if (jsonRecord.target != "newslide-_tpl_{house_lower}main") {
+                    console.log("Record was for " + jsonRecord.target + ", so skipping.");
+                    break;
+                }
+                // Even if the message ID goes backwards, this is the latest
+                // message in the feed, so we should persist it.
+                if (jsonRecord.arguments.length != 1) { console.log("Too many arguments: " + jsonRecord.arguments); continue; }
+                latest_message = jsonRecord.arguments[0];
+                console.log("Received event ID " + latest_message.id)
+            }
+        }
+    }
+
+    async function RedrawSlide() {
+        // Ensure that we don't take fields from different messages.
+        snapshot_message = latest_message;
+        snapshot_shown = current_shown;
+
+        // Identify what should be drawn next.
+        next_to_show = { "message_id": snapshot_message.id, "slideIndex": snapshot_shown.slideIndex, "shouldAdvance": false };
+        if (snapshot_shown.shouldAdvance) {
+            if (snapshot_message.slides.length > 0) {
+                next_to_show.slideIndex += 1;
+                next_to_show.slideIndex %= snapshot_message.slides.length;
+            } else {
+                next_to_show.slideIndex = 0;
+            }
+        }
+
+        if (snapshot_message.slides.length > next_to_show.slideIndex) {
+            slide_to_draw = snapshot_message.slides.sort(SlideCmp)[next_to_show.slideIndex];
+        } else {
+            slide_to_draw = { "type": "BlankSlide", "carouselDisplaySeconds": 20 };
+        }
+
+        // Nothing to do, next slide to draw matches current slide.
+        if (snapshot_shown.message_id == next_to_show.message_id && snapshot_shown.slideIndex == next_to_show.slideIndex) {
+            // Note: it's not safe to overwrite current_shown with next_to_show
+            // here because we need to make sure shouldAdvance is only reset if
+            // we evaluated it.  The other loop might set it while we're not
+            // watching, and then this might clear it erroneously.
+            //
+            // Since we know we're going to draw the current slide, we don't
+            // need to touch any other parts of current_shown.
+            if (snapshot_shown.shouldAdvance) {
+                current_shown.shouldAdvance = false;
+                // The advance trigger has fired, we need to set it again.
+                console.log("Rescheduling expired advance timer.");
+                slide_advance_timer_id = setTimeout(AdvanceSlide, Math.max(slide_to_draw.carouselDisplaySeconds * 1000, 1 * 1000));
+            }
+            return;
+        }
+
+        console.log("Redrawing");
+        if (slide_advance_timer_id) {
+            // New slide replacing old slide, need to start the timer from scratch.
+            console.log("Dropping slide advance timer.");
+            clearTimeout(slide_advance_timer_id);
+        }
+
+        toptext = document.getElementById("toptext");
+        middletext = document.getElementById("middletext");
+        bottomtext = document.getElementById("bottomtext");
+        speakerclocktext = document.getElementById("speakerclocktext");
+        while (toptext.firstChild && toptext.removeChild(toptext.firstChild));
+        while (middletext.firstChild && middletext.removeChild(middletext.firstChild));
+        while (bottomtext.firstChild && bottomtext.removeChild(bottomtext.firstChild));
+        speakerclocktext.textContent = "";
+
+        if (slide_to_draw.type == "UNOFFICIAL_API_VALUE_BLANK_SLIDE") {
+            // Don't populate any fields.  We want this to stay blank so
+            // there's no brief flash-in of the annunciator blank slide
+            // page during initial load.
+        } else if (snapshot_message.isSecurityOverride) {
+            t1 = document.createElement("div");
+            t1.classList.add("textlinecenter", "size120");
+            t1.textContent = "CONTENT HIDDEN";
+
+            ml0 = t1.cloneNode(true);
+            ml0.style.visibility = "hidden";
+            ml1 = document.createElement("div");
+            ml1.classList.add("textlinecenter", "size100");
+            ml1.textContent = "A SECURITY OVERRIDE IS";
+            ml2 = document.createElement("div");
+            ml2.classList.add("textlinecenter", "size100");
+            ml2.textContent = "CURRENTLY SHOWING IN";
+            ml3 = document.createElement("div");
+            ml3.classList.add("textlinecenter", "size100");
+            ml3.textContent = "PARLIAMENT";
+
+            toptext.appendChild(t1);
+            middletext.appendChild(ml0);
+            middletext.appendChild(ml0);
+            middletext.appendChild(ml1);
+            middletext.appendChild(ml2);
+            middletext.appendChild(ml3);
+        } else if (snapshot_message.annunciatorDisabled || slide_to_draw.type == "BlankSlide") {
+            l1 = document.createElement("div");
+            l1.classList.add("textlinecenter", "size100");
+            l1.textContent = "HOUSE OF _tpl_house_allcap";
+            l2 = document.createElement("div");
+            l2.classList.add("textlinecenter", "size100");
+            l2.textContent = "ANNUNCIATOR";
+
+            middletext.appendChild(l1);
+            middletext.appendChild(l2);
+        } else {
+            sortedLines = slide_to_draw.lines.sort(LineCmp);
+            toOutput = [[], [], []];
+            for (line of sortedLines) {
+                l = document.createElement("div");
+
+                // If alignment is explicit, you must use it.
+                if (line.horizontalAlignment == "Left") {
+                    // No class to add.
+                } else if (line.horizontalAlignment == "Centre") {
+                    l.classList.add("textlinecenter");
+                } else if (line.horizontalAlignment == "Right") {
+                    l.classList.add("textlinecenter");
+                } // Alignment is not explicit.  Make aesthetic decisions here.
+                else if (line.style == "Member") {
+                    l.classList.add("textlinecenter");
+                }
+
+                switch (line.horizontalAlignment) {
+                    case "Centre":
+                        l.classList.add("textlinecenter");
+                        break;
+                    case "Right":
+                        l.classList.add("textlineright");
+                        break;
+                }
+                switch (line.style) {
+                    case "Text150":
+                        l.classList.add("size150");
+                        break;
+                    case "Text140":
+                        l.classList.add("size140");
+                        break;
+                    case "Text130":
+                        l.classList.add("size130");
+                        break;
+                    case "Text120":
+                        l.classList.add("size120");
+                        break;
+                    case "Text110":
+                        l.classList.add("size110");
+                        break;
+                    case "Text100":
+                        l.classList.add("size100");
+                        break;
+                    case "Text90":
+                        l.classList.add("size90");
+                        break;
+                    case "Text80":
+                        l.classList.add("size80");
+                        break;
+                    case "Text70":
+                        l.classList.add("size70");
+                        break;
+                    case "Division":
+                        l.classList.add("sizedivision");
+                        break;
+                    case "Member":
+                        l.classList.add("sizemember");
+                        break;
+                    case "DividerSolid":
+                    case "EmptyLine":
+                    case "Footer":
+                    case "AnsweringBody":
+                    case "WestminsterHallInfo":
+                    case "GrantCommitteeInfo":
+                    case "DividerDotted":
+                    case "DividerDashed":
+                        // We don't know how to deal with these yet.
+                        console.log("I DON'T YET KNOW HOW TO HANDLE: " + line.style);
+                }
+
+                content = line.content;
+                if (line.style == "Member") {
+                    content = line.member.nameDisplayAs;
+                }
+
+                if (line.forceCapitalisation) {
+                    l.textContent = content.toUpperCase();
+                } else {
+                    l.textContent = content;
+                }
+
+                switch (line.verticalAlignment) {
+                    case "Top":
+                        toOutput[0].push(l);
+                        break;
+                    case "Bottom":
+                        toOutput[2].push(l);
+                        break;
+                    default:
+                        toOutput[1].push(l);
+                }
+            }
+            console.log(toOutput);
+
+            for (node of toOutput[0]) {
+                toptext.appendChild(node);
+                cloned = node.cloneNode(true);
+                cloned.style.visibility = "hidden";
+                middletext.appendChild(cloned);
+                middletext.appendChild(cloned);
+            }
+
+            for (node of toOutput[1]) {
+                middletext.appendChild(node);
+            }
+
+            for (node of toOutput[2]) {
+                bottomtext.appendChild(node);
+                cloned = node.cloneNode(true);
+                cloned.style.visibility = "hidden";
+                middletext.appendChild(cloned);
+                middletext.appendChild(cloned);
+            }
+
+            if (slide_to_draw.speakerTime != null && slide_to_draw.speakerTime != "") {
+                speakerclocktext.textContent = new Date(slide_to_draw.speakerTime).toLocaleString('en-US', { timeStyle: "short", hour12: false, timeZone: "Europe/London" });
+            }
+        }
+
+        console.log(slide_to_draw);
+        console.log(next_to_show);
+        current_shown = next_to_show;
+        console.log("Setting new slide advance timer.");
+        slide_advance_timer_id = setTimeout(AdvanceSlide, Math.max(slide_to_draw.carouselDisplaySeconds * 1000, 1 * 1000));
+    }
+
+    async function WatchHealth() {
+        since_last_keepalive = Date.now() - last_received_event;
+        console.log("Last keepalive seen " + since_last_keepalive + "ms ago.")
+        if (since_last_keepalive > reload_if_older_than) {
+            console.log("That's too old: reloading page!");
+            location.reload();
+        }
+    }
+
+    async function AdvanceSlide() {
+        console.log("Slide advancing.");
+        current_shown.shouldAdvance |= true;
+    }
+
+    // Compares two slides to put them in order.
+    // -ve = a before b, +ve = a after b.
+    async function SlideCmp(a, b) {
+        if (a.carouselOrder < b.carouselOrder) { return -1; }
+        if (a.carouselOrder > b.carouselOrder) { return 1; }
+        if (a.id < b.id) { return -1; }
+        if (a.id > b.id) { return 1; }
+        return 0;
+    }
+
+    async function LineCmp(a, b) {
+        if (a.displayOrder < b.displayOrder) { return -1; }
+        if (a.displayOrder > b.displayOrder) { return 1; }
+        return 0;
+    }
+
+    async function DrawClock() {
+        iters_since_last_clock_offset_fetch++;
+        if (clock_offset_from_actual_time == null || iters_since_last_clock_offset_fetch > clock_offset_refetch_iters) {
+            world_time_api_result = await fetch("https://worldtimeapi.org/api/timezone/UTC")
+            system_clock_result = Math.round(Date.now() / 1000);
+
+            console.log(system_clock_result);
+            if (!world_time_api_result.ok) {
+                console.log(world_time_api_result.statusText);
+                if (clock_offset_from_actual_time == null) { clock_offset_from_actual_time = 0; }
+            } else {
+                unixtime = (await world_time_api_result.json()).unixtime;
+                console.log(unixtime);
+                clock_offset_from_actual_time = (system_clock_result - unixtime);
+            }
+            iters_since_last_clock_offset_fetch = 0;
+        }
+
+        current_time = new Date(Date.now() - clock_offset_from_actual_time * 1000);
+        document.getElementById("clocktext").textContent = current_time.toLocaleString('en-US', { timeStyle: "short", hour12: false, timeZone: "Europe/London" });
+    }
+</script>
+
+</html>
