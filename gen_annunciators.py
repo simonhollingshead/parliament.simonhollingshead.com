@@ -5,7 +5,7 @@ from os import path
 class NoDollarTemplate(Template):
     delimiter = '_tpl_'
 
-commons = {"filename": "commons.htm",
+commons = {"filename": "out/commons.htm",
            "house_lower": "commons",
            "house_precap": "Commons",
            "house_allcap": "COMMONS",
@@ -13,7 +13,7 @@ commons = {"filename": "commons.htm",
            "house_hex": "#005434",
            "scroll_hex": "#9D0830"}
 
-lords = {"filename": "lords.htm",
+lords = {"filename": "out/lords.htm",
          "house_lower": "lords",
          "house_precap": "Lords",
          "house_allcap": "LORDS",
