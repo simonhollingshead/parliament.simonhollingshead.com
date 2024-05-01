@@ -35,11 +35,11 @@ jobs:
         if: steps.cache-fonts.outputs.cache-hit != 'true'
         run: |
           mkdir fonts
-          wget -O font.eot https://db.onlinewebfonts.com/t/cc0c83f1e7a5a34cf6985d861f0b2e1c.eot
-          wget -O font.woff2 https://db.onlinewebfonts.com/t/cc0c83f1e7a5a34cf6985d861f0b2e1c.woff2
-          wget -O font.woff https://db.onlinewebfonts.com/t/cc0c83f1e7a5a34cf6985d861f0b2e1c.woff
-          wget -O font.ttf https://db.onlinewebfonts.com/t/cc0c83f1e7a5a34cf6985d861f0b2e1c.ttf
-          wget -O font.svg https://db.onlinewebfonts.com/t/cc0c83f1e7a5a34cf6985d861f0b2e1c.svg
+          wget -O fonts/font.eot https://db.onlinewebfonts.com/t/cc0c83f1e7a5a34cf6985d861f0b2e1c.eot
+          wget -O fonts/font.woff2 https://db.onlinewebfonts.com/t/cc0c83f1e7a5a34cf6985d861f0b2e1c.woff2
+          wget -O fonts/font.woff https://db.onlinewebfonts.com/t/cc0c83f1e7a5a34cf6985d861f0b2e1c.woff
+          wget -O fonts/font.ttf https://db.onlinewebfonts.com/t/cc0c83f1e7a5a34cf6985d861f0b2e1c.ttf
+          wget -O fonts/font.svg https://db.onlinewebfonts.com/t/cc0c83f1e7a5a34cf6985d861f0b2e1c.svg
 
       - name: Add Fonts to Output Dir
         run: cp fonts/* out/
