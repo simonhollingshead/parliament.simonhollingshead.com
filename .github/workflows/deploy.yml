@@ -36,8 +36,9 @@ jobs:
 
       - name: Generate Annunciators
         run: |
-          pip install -r requirements.txt
-          python3 gen_annunciators.py
+          python3 -m venv venv/
+          venv/bin/pip install -r requirements.txt
+          venv/bin/python3 gen_annunciators.py
 
       - name: Fetch Fonts
         if: steps.cache-fonts.outputs.cache-hit != 'true'
