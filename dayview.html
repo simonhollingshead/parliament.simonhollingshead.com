@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UK Parliament — Order of Business</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      font-size: min(1.1vw, 1.96vh);
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 1rem;
+      line-height: 1.38;
+      color: #1f2937;
+      background-color: #ffffff;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .page-header {
+      flex: 0 0 auto;
+      padding: 0.75rem 1.1rem 0.3rem 1.1rem;
+    }
+
+    .page-title {
+      margin: 0;
+      font-size: 1.55rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: #111827;
+    }
+
+    #status {
+      padding: 1.1rem;
+      font-size: 1.1rem;
+    }
+
+    .dashboard-grid {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-rows: repeat(2, minmax(0, 1fr));
+      gap: 0.9rem;
+      width: 100%;
+      padding: 0.5rem 1.1rem 1rem 1.1rem;
+    }
+
+    .dashboard-grid[hidden] {
+      display: none;
+    }
+
+    .region {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      border-radius: 0.6rem;
+      padding: 0.8rem 1rem;
+      border: 1px solid transparent;
+    }
+
+    .region-commons {
+      background-color: #f1f8f4;
+      border-color: #c6e2d0;
+      color: #14532d;
+    }
+
+    .region-lords {
+      background-color: #fdf2f2;
+      border-color: #f2c9c9;
+      color: #7f1d1d;
+    }
+
+    .region-other {
+      grid-column: 3;
+      grid-row: 1 / span 2;
+      background-color: #f3f4f6;
+      border-color: #d1d5db;
+      color: #374151;
+    }
+
+    .region-title {
+      flex: 0 0 auto;
+      margin: 0 0 0.6rem 0;
+      padding-bottom: 0.45rem;
+      font-size: 1.2rem;
+      font-weight: 700;
+      border-bottom: 1px solid;
+      border-bottom-color: inherit;
+    }
+
+    .region-body {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      color: #1f2937;
+    }
+
+    .other-rooms-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 0.7rem;
+    }
+
+    .room-card {
+      background-color: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.45rem;
+      padding: 0.65rem 0.8rem;
+    }
+
+    .room-card-title {
+      margin: 0 0 0.45rem 0;
+      padding-bottom: 0.35rem;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #111827;
+      border-bottom: 1px solid #f3f4f6;
+    }
+
+    .event-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .event-row {
+      display: grid;
+      grid-template-columns: 3.3rem 1fr;
+      align-items: baseline;
+      column-gap: 0.6rem;
+    }
+
+    .event-time {
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: #4b5563;
+      white-space: nowrap;
+    }
+
+    .event-content {
+      min-width: 0;
+    }
+
+    .chip {
+      display: inline-block;
+      padding: 0.12rem 0.55rem;
+      margin-right: 0.45rem;
+      border-radius: 999px;
+      font-size: 0.84rem;
+      font-weight: 600;
+      line-height: 1.35;
+      vertical-align: baseline;
+      white-space: nowrap;
+    }
+
+    .chip-debate { background-color: #dbeafe; color: #1e40af; }
+    .chip-questions { background-color: #fef3c7; color: #92400e; }
+    .chip-urgent { background-color: #fee2e2; color: #991b1b; }
+    .chip-statement { background-color: #ede9fe; color: #5b21b6; }
+    .chip-legislation { background-color: #d1fae5; color: #065f46; }
+    .chip-procedural { background-color: #e5e7eb; color: #374151; }
+    .chip-default { background-color: #e0f2fe; color: #075985; }
+
+    .chip-party {
+      background-color: #ffffff;
+      border: 1px solid #d1d5db;
+      color: #374151;
+      font-weight: 700;
+    }
+
+    .event-subject {
+      color: #111827;
+    }
+
+    .event-collapsed {
+      color: #4b5563;
+      font-style: italic;
+    }
+
+    .empty-state {
+      color: #6b7280;
+      font-style: italic;
+      font-size: 0.95rem;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <header class="page-header">
+    <h1 id="page-title" class="page-title">UK Parliament — Order of Business</h1>
+  </header>
+
+  <div id="status"></div>
+
+  <div id="dashboard" class="dashboard-grid" hidden>
+    <section class="region region-commons">
+      <h2 class="region-title">Commons — Main Chamber</h2>
+      <div id="commons-main" class="region-body"></div>
+    </section>
+
+    <section class="region region-commons">
+      <h2 class="region-title">Commons — Westminster Hall</h2>
+      <div id="commons-westminster-hall" class="region-body"></div>
+    </section>
+
+    <section class="region region-lords">
+      <h2 class="region-title">Lords — Main Chamber</h2>
+      <div id="lords-main" class="region-body"></div>
+    </section>
+
+    <section class="region region-lords">
+      <h2 class="region-title">Lords — Grand Committee</h2>
+      <div id="lords-grand-committee" class="region-body"></div>
+    </section>
+
+    <section class="region region-other">
+      <h2 class="region-title">Other Locations</h2>
+      <div id="other-locations" class="region-body"></div>
+    </section>
+  </div>
+
+  <script>
+    const statusEl = document.getElementById('status');
+    const dashboardEl = document.getElementById('dashboard');
+    const pageTitleEl = document.getElementById('page-title');
+
+    const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+    const headerDateFormatter = new Intl.DateTimeFormat('en-GB', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+
+    const EXCLUDED_CATEGORIES = new Set(['Oral evidence', 'Private Meeting']);
+    const CATEGORY_REWRITES = {
+      'Westminster Hall debate': 'Debate',
+      'Motion on behalf of the Committee of Selection': 'Motion',
+    };
+    const PARTY_ABBREVIATIONS = {
+      'Labour': 'LAB',
+      'Labour (Co-op)': 'LAB',
+      'Conservative': 'CON',
+      'Liberal Democrat': 'LD',
+      'Liberal Democrats': 'LD',
+      'Crossbench': 'XB',
+      'Scottish National Party': 'SNP',
+      'Plaid Cymru': 'PC',
+      'Green Party': 'GRN',
+      'Green': 'GRN',
+      'Reform UK': 'REF',
+      'Democratic Unionist Party': 'DUP',
+      'Ulster Unionist Party': 'UUP',
+      'Social Democratic & Labour Party': 'SDLP',
+      'Social Democratic and Labour Party': 'SDLP',
+      'Alliance': 'ALL',
+      'Alliance Party': 'ALL',
+      'Sinn Féin': 'SF',
+      'Sinn Fein': 'SF',
+      'Traditional Unionist Voice': 'TUV',
+      'Alba Party': 'ALBA',
+      'Independent': 'IND',
+      'Non-affiliated': 'NA',
+      'Bishops': 'BISH',
+      'Lords Spiritual': 'BISH',
+      'Speaker': 'SPK',
+      'Lord Speaker': 'SPK',
+    };
+    const PMB_CATEGORY = "Private Members' Bills";
+    const MAX_FRIDAY_CONSECUTIVE_PMBS = 5;
+    const MAX_SUBJECT_LENGTH = 250;
+
+    function getTodayString() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function getSelectedDate() {
+      const dateParam = new URLSearchParams(window.location.search).get('date');
+      return dateParam?.trim() || getTodayString();
+    }
+
+    function parseLocalDate(dateStr) {
+      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr);
+      if (!match) return null;
+      const dateObj = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+      return Number.isNaN(dateObj.getTime()) ? null : dateObj;
+    }
+
+    function getLocation(event) {
+      return event.Location?.trim() || [event.House, event.Type].filter(Boolean).join(' - ') || 'Other';
+    }
+
+    function splitLocation(loc) {
+      const commaIndex = loc.indexOf(',');
+      return commaIndex === -1
+        ? { building: '', room: loc.trim() }
+        : {
+            room: loc.slice(0, commaIndex).trim(),
+            building: loc.slice(commaIndex + 1).trim(),
+          };
+    }
+
+    function compareLocations(locA, locB) {
+      const a = splitLocation(locA);
+      const b = splitLocation(locB);
+      return collator.compare(a.building, b.building) || collator.compare(a.room, b.room);
+    }
+
+    function compareEvents(a, b) {
+      if (a.SortOrder !== b.SortOrder) {
+        return a.SortOrder - b.SortOrder;
+      }
+      const timeA = a.StartTime || '99:99';
+      const timeB = b.StartTime || '99:99';
+      return timeA.localeCompare(timeB) || (a.Id - b.Id);
+    }
+
+    function getChipClass(category) {
+      const lower = category.toLowerCase();
+      if (lower.includes('urgent question')) return 'chip-urgent';
+      if (lower.includes('question') || lower.includes('business statement')) return 'chip-questions';
+      if (lower.includes('statement')) return 'chip-statement';
+      if (lower.includes('debate') || lower.includes('backbench') || lower.includes('adjournment')) {
+        return 'chip-debate';
+      }
+      if (
+        lower.includes('bill') ||
+        lower.includes('legislation') ||
+        lower.includes('order') ||
+        lower.includes('regulation')
+      ) {
+        return 'chip-legislation';
+      }
+      if (lower.includes('rising time') || lower.includes('royal assent') || lower.includes('prorogation')) {
+        return 'chip-procedural';
+      }
+      return 'chip-default';
+    }
+
+    function getEventSubject(event) {
+      let text = event.Description || '';
+      if (!text && event.Committee) {
+        const subject = event.Committee.Description || '';
+        const inquiries = (event.Committee.Inquiries || [])
+          .map(i => i.Description)
+          .filter(Boolean)
+          .join(', ');
+        text = inquiries ? `${subject}: ${inquiries}` : subject;
+      }
+      return text.length > MAX_SUBJECT_LENGTH
+        ? `${text.slice(0, MAX_SUBJECT_LENGTH).trimEnd()}…`
+        : text;
+    }
+
+    function collapseFridayPmbs(events, isFridaySitting) {
+      if (!isFridaySitting) return events;
+
+      const result = [];
+      let i = 0;
+      while (i < events.length) {
+        if (events[i].Category !== PMB_CATEGORY) {
+          result.push(events[i]);
+          i++;
+          continue;
+        }
+
+        let j = i;
+        while (j < events.length && events[j].Category === PMB_CATEGORY) {
+          j++;
+        }
+
+        const runLength = j - i;
+        const limit = Math.min(runLength, MAX_FRIDAY_CONSECUTIVE_PMBS);
+        for (let k = i; k < i + limit; k++) {
+          result.push(events[k]);
+        }
+        if (runLength > MAX_FRIDAY_CONSECUTIVE_PMBS) {
+          result.push({
+            StartTime: '',
+            Category: PMB_CATEGORY,
+            Description: `...and ${runLength - MAX_FRIDAY_CONSECUTIVE_PMBS} more`,
+            isCollapsed: true,
+          });
+        }
+        i = j;
+      }
+
+      return result;
+    }
+
+    function createEmptyState() {
+      const empty = document.createElement('p');
+      empty.className = 'empty-state';
+      empty.textContent = 'No scheduled business';
+      return empty;
+    }
+
+    function createEventListElement(events, isFridaySitting) {
+      if (!events.length) {
+        return createEmptyState();
+      }
+
+      events.sort(compareEvents);
+      const displayEvents = collapseFridayPmbs(events, isFridaySitting);
+      const ul = document.createElement('ul');
+      ul.className = 'event-list';
+
+      for (const event of displayEvents) {
+        const li = document.createElement('li');
+        li.className = 'event-row';
+
+        const timeSpan = document.createElement('span');
+        timeSpan.className = 'event-time';
+        timeSpan.textContent = event.StartTime?.trim() || '';
+
+        const contentSpan = document.createElement('div');
+        contentSpan.className = 'event-content';
+
+        const category = CATEGORY_REWRITES[event.Category] || event.Category || '';
+        if (category) {
+          const chip = document.createElement('span');
+          chip.className = `chip ${getChipClass(category)}`;
+          chip.textContent = category;
+          contentSpan.appendChild(chip);
+        }
+
+        const member = event.Members?.[0];
+        if (member?.Party) {
+          const partyChip = document.createElement('span');
+          partyChip.className = 'chip chip-party';
+          partyChip.textContent = PARTY_ABBREVIATIONS[member.Party] || member.Party.toUpperCase();
+          const hex = member.PartyColour?.replace(/^#/, '').trim();
+          if (hex) {
+            partyChip.style.color = `#${hex}`;
+          }
+          contentSpan.appendChild(partyChip);
+        }
+
+        const subject = getEventSubject(event);
+        if (subject) {
+          const subjectSpan = document.createElement('span');
+          subjectSpan.className = event.isCollapsed ? 'event-collapsed' : 'event-subject';
+          subjectSpan.textContent = subject;
+          contentSpan.appendChild(subjectSpan);
+        }
+
+        li.append(timeSpan, contentSpan);
+        ul.appendChild(li);
+      }
+
+      return ul;
+    }
+
+    async function loadEvents(dateStr) {
+      const dateObj = parseLocalDate(dateStr);
+      const formattedDate = dateObj ? headerDateFormatter.format(dateObj) : dateStr;
+      const isFridaySitting = dateObj?.getDay() === 5;
+
+      pageTitleEl.textContent = `UK Parliament — Order of Business for ${formattedDate}`;
+      document.title = `UK Parliament — Order of Business (${dateStr})`;
+
+      statusEl.textContent = 'Loading...';
+      statusEl.hidden = false;
+      dashboardEl.hidden = true;
+
+      const url = `https://whatson-api.parliament.uk/calendar/events/list.json?queryParameters.startDate=${encodeURIComponent(dateStr)}&queryParameters.endDate=${encodeURIComponent(dateStr)}`;
+
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const events = await response.json();
+        statusEl.hidden = true;
+        dashboardEl.hidden = false;
+        renderEvents(Array.isArray(events) ? events : [], isFridaySitting);
+      } catch (err) {
+        statusEl.textContent = `Error loading events: ${err.message}`;
+      }
+    }
+
+    function renderEvents(events, isFridaySitting) {
+      const commonsMain = [];
+      const commonsWestminsterHall = [];
+      const lordsMain = [];
+      const lordsGrandCommittee = [];
+      const otherByLocation = new Map();
+
+      for (const event of events) {
+        if (event.CancelledDate || EXCLUDED_CATEGORIES.has(event.Category)) continue;
+
+        if (event.House === 'Commons' && event.Type === 'Main Chamber') {
+          commonsMain.push(event);
+        } else if (event.House === 'Commons' && event.Type === 'Westminster Hall') {
+          commonsWestminsterHall.push(event);
+        } else if (event.House === 'Lords' && event.Type === 'Main Chamber') {
+          lordsMain.push(event);
+        } else if (
+          event.House === 'Lords' &&
+          (event.Type === 'Grand Committee' || event.Location?.includes('Grand Committee'))
+        ) {
+          lordsGrandCommittee.push(event);
+        } else {
+          const loc = getLocation(event);
+          if (!otherByLocation.has(loc)) {
+            otherByLocation.set(loc, []);
+          }
+          otherByLocation.get(loc).push(event);
+        }
+      }
+
+      document.getElementById('commons-main')
+        .replaceChildren(createEventListElement(commonsMain, isFridaySitting));
+      document.getElementById('commons-westminster-hall')
+        .replaceChildren(createEventListElement(commonsWestminsterHall, isFridaySitting));
+      document.getElementById('lords-main')
+        .replaceChildren(createEventListElement(lordsMain, isFridaySitting));
+      document.getElementById('lords-grand-committee')
+        .replaceChildren(createEventListElement(lordsGrandCommittee, isFridaySitting));
+
+      const otherEl = document.getElementById('other-locations');
+      if (otherByLocation.size === 0) {
+        otherEl.replaceChildren(createEmptyState());
+        return;
+      }
+
+      const stack = document.createElement('div');
+      stack.className = 'other-rooms-stack';
+
+      const sortedLocations = Array.from(otherByLocation.keys()).sort(compareLocations);
+      for (const location of sortedLocations) {
+        const card = document.createElement('div');
+        card.className = 'room-card';
+
+        const title = document.createElement('h3');
+        title.className = 'room-card-title';
+        title.textContent = location;
+
+        card.append(title, createEventListElement(otherByLocation.get(location), isFridaySitting));
+        stack.appendChild(card);
+      }
+
+      otherEl.replaceChildren(stack);
+    }
+
+    loadEvents(getSelectedDate());
+  </script>
+</body>
+</html>
