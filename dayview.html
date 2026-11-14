@@ -1,16 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>UK Parliament — Order of Business</title>
   <style>
+    :root {
+      --surface: #ffffff;
+      --bg-muted: #f3f4f6;
+      --border-light: #e5e7eb;
+      --text-strong: #111827;
+      --text-body: #1f2937;
+      --text-secondary: #374151;
+      --text-muted: #4b5563;
+      --text-subtle: #6b7280;
+      --commons-green: #006548;
+      --lords-red: #b50938;
+      --joint-commons-mid: #1e4b4c;
+      --joint-lords-mid: #731f44;
+      --unknown-pink: #ff00aa;
+    }
+
     * {
       box-sizing: border-box;
     }
 
     html {
-      font-size: min(1.1vw, 1.96vh);
+      font-size: min(1vw, 1.8vh);
     }
 
     body {
@@ -22,8 +39,8 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       font-size: 1rem;
       line-height: 1.38;
-      color: #1f2937;
-      background-color: #ffffff;
+      color: var(--text-body);
+      background-color: var(--surface);
       display: flex;
       flex-direction: column;
     }
@@ -38,12 +55,7 @@
       font-size: 1.55rem;
       font-weight: 700;
       letter-spacing: -0.01em;
-      color: #111827;
-    }
-
-    #status {
-      padding: 1.1rem;
-      font-size: 1.1rem;
+      color: var(--text-strong);
     }
 
     .dashboard-grid {
@@ -51,14 +63,11 @@
       min-height: 0;
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      grid-template-rows: repeat(2, minmax(0, 1fr));
+      grid-template-rows: minmax(0, 65fr) minmax(0, 35fr);
+      grid-auto-flow: column;
       gap: 0.9rem;
       width: 100%;
       padding: 0.5rem 1.1rem 1rem 1.1rem;
-    }
-
-    .dashboard-grid[hidden] {
-      display: none;
     }
 
     .region {
@@ -71,23 +80,22 @@
     }
 
     .region-commons {
-      background-color: #f1f8f4;
-      border-color: #c6e2d0;
-      color: #14532d;
+      background-color: #f0f7f5;
+      border-color: #bfe0d6;
+      color: #00543c;
     }
 
     .region-lords {
-      background-color: #fdf2f2;
-      border-color: #f2c9c9;
-      color: #7f1d1d;
+      background-color: #fdf2f5;
+      border-color: #f3c6d3;
+      color: #8c0b2e;
     }
 
     .region-other {
-      grid-column: 3;
-      grid-row: 1 / span 2;
-      background-color: #f3f4f6;
+      grid-row: span 2;
+      background-color: var(--bg-muted);
       border-color: #d1d5db;
-      color: #374151;
+      color: var(--text-secondary);
     }
 
     .region-title {
@@ -104,7 +112,7 @@
       flex: 1 1 auto;
       min-height: 0;
       overflow-y: auto;
-      color: #1f2937;
+      color: var(--text-body);
     }
 
     .other-rooms-stack {
@@ -114,8 +122,8 @@
     }
 
     .room-card {
-      background-color: #ffffff;
-      border: 1px solid #e5e7eb;
+      background-color: var(--surface);
+      border: 1px solid var(--border-light);
       border-radius: 0.45rem;
       padding: 0.65rem 0.8rem;
     }
@@ -125,8 +133,8 @@
       padding-bottom: 0.35rem;
       font-size: 1rem;
       font-weight: 700;
-      color: #111827;
-      border-bottom: 1px solid #f3f4f6;
+      color: var(--text-strong);
+      border-bottom: 1px solid var(--bg-muted);
     }
 
     .event-list {
@@ -145,11 +153,15 @@
       column-gap: 0.6rem;
     }
 
+    .region-other .event-row {
+      grid-template-columns: 6.4rem 1fr;
+    }
+
     .event-time {
       font-variant-numeric: tabular-nums;
       font-weight: 700;
       font-size: 0.95rem;
-      color: #4b5563;
+      color: var(--text-muted);
       white-space: nowrap;
     }
 
@@ -161,6 +173,7 @@
       display: inline-block;
       padding: 0.12rem 0.55rem;
       margin-right: 0.45rem;
+      border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
       border-radius: 999px;
       font-size: 0.84rem;
       font-weight: 600;
@@ -169,145 +182,249 @@
       white-space: nowrap;
     }
 
-    .chip-debate { background-color: #dbeafe; color: #1e40af; }
-    .chip-questions { background-color: #fef3c7; color: #92400e; }
-    .chip-urgent { background-color: #fee2e2; color: #991b1b; }
-    .chip-statement { background-color: #ede9fe; color: #5b21b6; }
-    .chip-legislation { background-color: #d1fae5; color: #065f46; }
-    .chip-procedural { background-color: #e5e7eb; color: #374151; }
-    .chip-default { background-color: #e0f2fe; color: #075985; }
+    .chip-debate {
+      background-color: #bfdbfe;
+      color: #1e3a8a;
+    }
 
-    .chip-party {
-      background-color: #ffffff;
-      border: 1px solid #d1d5db;
-      color: #374151;
+    .chip-questions {
+      background-color: #fef08a;
+      color: #713f12;
+    }
+
+    .chip-urgent {
+      background-color: #fecaca;
+      color: #7f1d1d;
+    }
+
+    .chip-statement {
+      background-color: #e9d5ff;
+      color: #581c87;
+    }
+
+    .chip-legislation {
+      background-color: #bbf7d0;
+      color: #14532d;
+    }
+
+    .chip-motion {
+      background-color: #fed7aa;
+      color: #7c2d12;
+    }
+
+    .chip-procedural {
+      background-color: var(--border-light);
+      color: var(--text-secondary);
+    }
+
+    .chip-unknown,
+    .chip-house-commons,
+    .chip-house-lords,
+    .chip-house-joint-commons,
+    .chip-house-joint-lords {
+      border-color: transparent;
+      background-origin: border-box;
+      color: var(--surface);
       font-weight: 700;
     }
 
+    .chip-unknown {
+      background-color: var(--unknown-pink);
+    }
+
+    .chip-house-commons {
+      background-color: var(--commons-green);
+    }
+
+    .chip-house-lords {
+      background-color: var(--lords-red);
+    }
+
+    .chip-house-joint-commons {
+      background: linear-gradient(105deg, var(--commons-green) 50%, var(--joint-commons-mid) 62%, var(--lords-red) 74%);
+    }
+
+    .chip-house-joint-lords {
+      background: linear-gradient(105deg, var(--lords-red) 50%, var(--joint-lords-mid) 62%, var(--commons-green) 74%);
+    }
+
+    .chip-party {
+      display: inline-flex;
+      padding: 0;
+      border-color: rgba(0, 0, 0, 0.2);
+      font-weight: 700;
+    }
+
+    .party-seg {
+      padding: 0.12rem 0.44rem;
+    }
+
+    .party-seg:first-child {
+      padding-left: 0.55rem;
+      border-top-left-radius: 999px;
+      border-bottom-left-radius: 999px;
+    }
+
+    .party-seg:last-child {
+      padding-right: 0.55rem;
+      border-top-right-radius: 999px;
+      border-bottom-right-radius: 999px;
+    }
+
+    .party-seg + .party-seg {
+      border-left: 1px solid rgba(0, 0, 0, 0.25);
+    }
+
+    .party-seg-unknown {
+      background-color: var(--unknown-pink);
+      color: var(--surface);
+    }
+
     .event-subject {
-      color: #111827;
+      color: var(--text-strong);
     }
 
     .event-collapsed {
-      color: #4b5563;
+      color: var(--text-muted);
       font-style: italic;
     }
 
-    .empty-state {
-      color: #6b7280;
+    .region-status {
+      color: var(--text-subtle);
       font-style: italic;
       font-size: 0.95rem;
       margin: 0;
     }
+
+    .region-status-error {
+      color: #991b1b;
+    }
   </style>
 </head>
+
 <body>
   <header class="page-header">
     <h1 id="page-title" class="page-title">UK Parliament — Order of Business</h1>
   </header>
 
-  <div id="status"></div>
-
-  <div id="dashboard" class="dashboard-grid" hidden>
+  <div class="dashboard-grid">
     <section class="region region-commons">
       <h2 class="region-title">Commons — Main Chamber</h2>
-      <div id="commons-main" class="region-body"></div>
+      <div id="commons-main" class="region-body">
+        <p class="region-status">Loading...</p>
+      </div>
     </section>
 
     <section class="region region-commons">
       <h2 class="region-title">Commons — Westminster Hall</h2>
-      <div id="commons-westminster-hall" class="region-body"></div>
+      <div id="commons-westminster-hall" class="region-body">
+        <p class="region-status">Loading...</p>
+      </div>
     </section>
 
     <section class="region region-lords">
       <h2 class="region-title">Lords — Main Chamber</h2>
-      <div id="lords-main" class="region-body"></div>
+      <div id="lords-main" class="region-body">
+        <p class="region-status">Loading...</p>
+      </div>
     </section>
 
     <section class="region region-lords">
       <h2 class="region-title">Lords — Grand Committee</h2>
-      <div id="lords-grand-committee" class="region-body"></div>
+      <div id="lords-grand-committee" class="region-body">
+        <p class="region-status">Loading...</p>
+      </div>
     </section>
 
     <section class="region region-other">
       <h2 class="region-title">Other Locations</h2>
-      <div id="other-locations" class="region-body"></div>
+      <div id="other-locations" class="region-body">
+        <p class="region-status">Loading...</p>
+      </div>
     </section>
   </div>
 
   <script>
-    const statusEl = document.getElementById('status');
-    const dashboardEl = document.getElementById('dashboard');
     const pageTitleEl = document.getElementById('page-title');
+    const fixedRegionEls = {
+      'Commons:Main Chamber': document.getElementById('commons-main'),
+      'Commons:Westminster Hall': document.getElementById('commons-westminster-hall'),
+      'Lords:Main Chamber': document.getElementById('lords-main'),
+      'Lords:Grand Committee': document.getElementById('lords-grand-committee'),
+    };
+    const otherLocationsEl = document.getElementById('other-locations');
 
     const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+    const isoDateFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' });
     const headerDateFormatter = new Intl.DateTimeFormat('en-GB', {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
       year: 'numeric',
+      timeZone: 'Europe/London',
     });
 
-    const EXCLUDED_CATEGORIES = new Set(['Oral evidence', 'Private Meeting']);
-    const CATEGORY_REWRITES = {
-      'Westminster Hall debate': 'Debate',
-      'Motion on behalf of the Committee of Selection': 'Motion',
+    const PMB_CATEGORY = "Private Members' Bills";
+    const PMQ_CATEGORY = "Prime Minister's Question Time";
+    const EXCLUDED_CATEGORIES = new Set([
+      'Oral evidence',
+      'Oral evidence, Private discussion',
+      'Private Meeting',
+    ]);
+    const CATEGORY_CHIPS = {
+      'Debate': 'chip-debate',
+      'Backbench Business': 'chip-debate',
+      'Oral questions': 'chip-questions',
+      'PMQs': 'chip-questions',
+      'Urgent question': 'chip-urgent',
+      'Urgent Question Repeat': 'chip-urgent',
+      'Private Notice Question': 'chip-urgent',
+      'Statement': 'chip-statement',
+      'Legislation': 'chip-legislation',
+      [PMB_CATEGORY]: 'chip-legislation',
+      'Orders and regulations': 'chip-legislation',
+      'Ten Minute Rule Motion': 'chip-legislation',
+      'Motion': 'chip-motion',
+      'Adjournment': 'chip-procedural',
+      'Estimated rising time': 'chip-procedural',
+      'Introduction(s)': 'chip-procedural',
+      'Royal Assent': 'chip-procedural',
     };
     const PARTY_ABBREVIATIONS = {
       'Labour': 'LAB',
       'Labour (Co-op)': 'LAB',
       'Conservative': 'CON',
       'Liberal Democrat': 'LD',
-      'Liberal Democrats': 'LD',
       'Crossbench': 'XB',
-      'Scottish National Party': 'SNP',
-      'Plaid Cymru': 'PC',
       'Green Party': 'GRN',
-      'Green': 'GRN',
-      'Reform UK': 'REF',
       'Democratic Unionist Party': 'DUP',
-      'Ulster Unionist Party': 'UUP',
-      'Social Democratic & Labour Party': 'SDLP',
-      'Social Democratic and Labour Party': 'SDLP',
-      'Alliance': 'ALL',
-      'Alliance Party': 'ALL',
-      'Sinn Féin': 'SF',
-      'Sinn Fein': 'SF',
-      'Traditional Unionist Voice': 'TUV',
-      'Alba Party': 'ALBA',
-      'Independent': 'IND',
       'Non-affiliated': 'NA',
+      'Independent': 'IND',
+      'Plaid Cymru': 'PC',
       'Bishops': 'BISH',
-      'Lords Spiritual': 'BISH',
-      'Speaker': 'SPK',
-      'Lord Speaker': 'SPK',
+      'Alliance': 'ALL',
+      'Ulster Unionist Party': 'UUP',
     };
-    const PMB_CATEGORY = "Private Members' Bills";
-    const MAX_FRIDAY_CONSECUTIVE_PMBS = 5;
-    const MAX_SUBJECT_LENGTH = 250;
-
-    function getTodayString() {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    }
+    const MAX_CONSECUTIVE_PMBS = 6;
+    const MAX_SUBJECT_LENGTH = 150;
 
     function getSelectedDate() {
-      const dateParam = new URLSearchParams(window.location.search).get('date');
-      return dateParam?.trim() || getTodayString();
+      return new URLSearchParams(window.location.search).get('date')?.trim()
+        || isoDateFormatter.format(new Date());
     }
 
-    function parseLocalDate(dateStr) {
-      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr);
-      if (!match) return null;
-      const dateObj = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-      return Number.isNaN(dateObj.getTime()) ? null : dateObj;
+    function parseDate(dateStr) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return null;
+      const dateObj = new Date(`${dateStr}T12:00:00Z`);
+      return !Number.isNaN(dateObj.getTime()) && isoDateFormatter.format(dateObj) === dateStr ? dateObj : null;
     }
 
     function getLocation(event) {
-      return event.Location?.trim() || [event.House, event.Type].filter(Boolean).join(' - ') || 'Other';
+      return event.Location?.trim().replace(/\s+/g, ' ') || 'Unknown';
+    }
+
+    function toTitleCase(str) {
+      return str.toLowerCase().replace(/(?:^|[\s\d,-])\p{L}/gu, m => m.toUpperCase());
     }
 
     function splitLocation(loc) {
@@ -315,9 +432,9 @@
       return commaIndex === -1
         ? { building: '', room: loc.trim() }
         : {
-            room: loc.slice(0, commaIndex).trim(),
-            building: loc.slice(commaIndex + 1).trim(),
-          };
+          room: loc.slice(0, commaIndex).trim(),
+          building: loc.slice(commaIndex + 1).trim(),
+        };
     }
 
     function compareLocations(locA, locB) {
@@ -335,30 +452,18 @@
       return timeA.localeCompare(timeB) || (a.Id - b.Id);
     }
 
-    function getChipClass(category) {
-      const lower = category.toLowerCase();
-      if (lower.includes('urgent question')) return 'chip-urgent';
-      if (lower.includes('question') || lower.includes('business statement')) return 'chip-questions';
-      if (lower.includes('statement')) return 'chip-statement';
-      if (lower.includes('debate') || lower.includes('backbench') || lower.includes('adjournment')) {
-        return 'chip-debate';
-      }
-      if (
-        lower.includes('bill') ||
-        lower.includes('legislation') ||
-        lower.includes('order') ||
-        lower.includes('regulation')
-      ) {
-        return 'chip-legislation';
-      }
-      if (lower.includes('rising time') || lower.includes('royal assent') || lower.includes('prorogation')) {
-        return 'chip-procedural';
-      }
-      return 'chip-default';
+    function rewriteCategory(category) {
+      if (category === PMQ_CATEGORY) return 'PMQs';
+      if (/ debate$/i.test(category)) return 'Debate';
+      if (/ statement$/i.test(category)) return 'Statement';
+      if (/^motion /i.test(category)) return 'Motion';
+      return category;
     }
 
     function getEventSubject(event) {
-      let text = event.Description || '';
+      let text = event.Category === PMQ_CATEGORY && event.Members?.[0]?.Name
+        ? `To ${event.Members[0].Name}`
+        : (event.Description || '');
       if (!text && event.Committee) {
         const subject = event.Committee.Description || '';
         const inquiries = (event.Committee.Inquiries || [])
@@ -372,116 +477,191 @@
         : text;
     }
 
-    function collapseFridayPmbs(events, isFridaySitting) {
-      if (!isFridaySitting) return events;
+    function parseHexColour(rawHex) {
+      let hex = rawHex?.replace(/^#/, '').trim() || '';
+      if (/^[0-9a-f]{3}$/i.test(hex)) {
+        hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+      }
+      return /^[0-9a-f]{6}$/i.test(hex) ? hex : null;
+    }
 
-      const result = [];
-      let i = 0;
-      while (i < events.length) {
-        if (events[i].Category !== PMB_CATEGORY) {
-          result.push(events[i]);
-          i++;
-          continue;
-        }
+    function getContrastTextColour(hex) {
+      const toLinear = offset => {
+        const c = parseInt(hex.slice(offset, offset + 2), 16) / 255;
+        return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+      };
+      const luminance = 0.2126 * toLinear(0) + 0.7152 * toLinear(2) + 0.0722 * toLinear(4);
+      return luminance > 0.34 ? '#000000' : '#ffffff';
+    }
 
-        let j = i;
-        while (j < events.length && events[j].Category === PMB_CATEGORY) {
-          j++;
-        }
+    function createPartyChip(members) {
+      if (!members?.length) return null;
 
-        const runLength = j - i;
-        const limit = Math.min(runLength, MAX_FRIDAY_CONSECUTIVE_PMBS);
-        for (let k = i; k < i + limit; k++) {
-          result.push(events[k]);
+      const seen = new Set();
+      const chip = document.createElement('span');
+      chip.className = 'chip chip-party';
+
+      for (const member of members) {
+        if (!member?.Party) continue;
+        const shortParty = PARTY_ABBREVIATIONS[member.Party];
+        const label = shortParty || member.Party;
+        if (seen.has(label)) continue;
+        seen.add(label);
+
+        const span = document.createElement('span');
+        span.textContent = label;
+        const hex = shortParty ? parseHexColour(member.PartyColour) : null;
+        if (hex) {
+          span.className = 'party-seg';
+          span.style.backgroundColor = `#${hex}`;
+          span.style.color = getContrastTextColour(hex);
+        } else {
+          span.className = 'party-seg party-seg-unknown';
         }
-        if (runLength > MAX_FRIDAY_CONSECUTIVE_PMBS) {
-          result.push({
-            StartTime: '',
-            Category: PMB_CATEGORY,
-            Description: `...and ${runLength - MAX_FRIDAY_CONSECUTIVE_PMBS} more`,
-            isCollapsed: true,
-          });
-        }
-        i = j;
+        chip.appendChild(span);
       }
 
-      return result;
+      return seen.size > 0 ? chip : null;
     }
 
-    function createEmptyState() {
-      const empty = document.createElement('p');
-      empty.className = 'empty-state';
-      empty.textContent = 'No scheduled business';
-      return empty;
+    function createStatusElement(text, isError = false) {
+      const p = document.createElement('p');
+      p.className = isError ? 'region-status region-status-error' : 'region-status';
+      p.textContent = text;
+      return p;
     }
 
-    function createEventListElement(events, isFridaySitting) {
+    function setAllRegionsStatus(text, isError = false) {
+      for (const el of [...Object.values(fixedRegionEls), otherLocationsEl]) {
+        el.replaceChildren(createStatusElement(text, isError));
+      }
+    }
+
+    function createHouseChip(event) {
+      const chip = document.createElement('span');
+      if (event.House === 'Commons') {
+        chip.className = 'chip chip-house-commons';
+        chip.textContent = 'HC';
+      } else if (event.House === 'Lords') {
+        chip.className = 'chip chip-house-lords';
+        chip.textContent = 'HL';
+      } else if (event.House === 'Joint' && (event.LeadHouse === 'Commons' || event.LeadHouse === 'Lords')) {
+        chip.className = `chip chip-house-joint-${event.LeadHouse.toLowerCase()}`;
+        chip.textContent = 'JT';
+      } else {
+        chip.className = 'chip chip-unknown';
+        chip.textContent = [event.House, event.LeadHouse].filter(Boolean).join('/') || '?';
+      }
+      return chip;
+    }
+
+    function createEventRow(event, isOtherLocation) {
+      const li = document.createElement('li');
+      li.className = 'event-row';
+
+      const startTime = event.StartTime?.trim() || '';
+      const endTime = isOtherLocation ? (event.EndTime?.trim() || '') : '';
+      const timeSpan = document.createElement('span');
+      timeSpan.className = 'event-time';
+      timeSpan.textContent = startTime && endTime ? `${startTime}–${endTime}` : startTime;
+
+      const contentSpan = document.createElement('div');
+      contentSpan.className = 'event-content';
+
+      if (isOtherLocation) {
+        contentSpan.appendChild(createHouseChip(event));
+      }
+
+      const category = rewriteCategory(event.Category?.trim() || '');
+      if (category) {
+        const chip = document.createElement('span');
+        chip.className = `chip ${CATEGORY_CHIPS[category] || 'chip-unknown'}`;
+        chip.textContent = category;
+        contentSpan.appendChild(chip);
+      }
+
+      const partyChip = createPartyChip(event.Members);
+      if (partyChip) {
+        contentSpan.appendChild(partyChip);
+      }
+
+      const subject = getEventSubject(event);
+      if (subject) {
+        const subjectSpan = document.createElement('span');
+        subjectSpan.className = 'event-subject';
+        subjectSpan.textContent = subject;
+        contentSpan.appendChild(subjectSpan);
+      }
+
+      li.append(timeSpan, contentSpan);
+      return li;
+    }
+
+    function createCollapsedPmbRow(extraCount) {
+      const li = document.createElement('li');
+      li.className = 'event-row';
+
+      const timeSpan = document.createElement('span');
+      timeSpan.className = 'event-time';
+
+      const contentSpan = document.createElement('div');
+      contentSpan.className = 'event-content';
+
+      const chip = document.createElement('span');
+      chip.className = `chip ${CATEGORY_CHIPS[PMB_CATEGORY]}`;
+      chip.textContent = PMB_CATEGORY;
+
+      const subjectSpan = document.createElement('span');
+      subjectSpan.className = 'event-collapsed';
+      subjectSpan.textContent = `...and ${extraCount} more`;
+
+      contentSpan.append(chip, subjectSpan);
+      li.append(timeSpan, contentSpan);
+      return li;
+    }
+
+    function createEventListElement(events, isOtherLocation = false) {
       if (!events.length) {
-        return createEmptyState();
+        return createStatusElement('No scheduled business');
       }
 
-      events.sort(compareEvents);
-      const displayEvents = collapseFridayPmbs(events, isFridaySitting);
+      const sorted = events.toSorted(compareEvents);
       const ul = document.createElement('ul');
       ul.className = 'event-list';
 
-      for (const event of displayEvents) {
-        const li = document.createElement('li');
-        li.className = 'event-row';
-
-        const timeSpan = document.createElement('span');
-        timeSpan.className = 'event-time';
-        timeSpan.textContent = event.StartTime?.trim() || '';
-
-        const contentSpan = document.createElement('div');
-        contentSpan.className = 'event-content';
-
-        const category = CATEGORY_REWRITES[event.Category] || event.Category || '';
-        if (category) {
-          const chip = document.createElement('span');
-          chip.className = `chip ${getChipClass(category)}`;
-          chip.textContent = category;
-          contentSpan.appendChild(chip);
-        }
-
-        const member = event.Members?.[0];
-        if (member?.Party) {
-          const partyChip = document.createElement('span');
-          partyChip.className = 'chip chip-party';
-          partyChip.textContent = PARTY_ABBREVIATIONS[member.Party] || member.Party.toUpperCase();
-          const hex = member.PartyColour?.replace(/^#/, '').trim();
-          if (hex) {
-            partyChip.style.color = `#${hex}`;
+      let pmbRun = 0;
+      for (const event of sorted) {
+        if (event.Category === PMB_CATEGORY) {
+          pmbRun++;
+          if (pmbRun <= MAX_CONSECUTIVE_PMBS) {
+            ul.appendChild(createEventRow(event, isOtherLocation));
           }
-          contentSpan.appendChild(partyChip);
+        } else {
+          if (pmbRun > MAX_CONSECUTIVE_PMBS) {
+            ul.appendChild(createCollapsedPmbRow(pmbRun - MAX_CONSECUTIVE_PMBS));
+          }
+          pmbRun = 0;
+          ul.appendChild(createEventRow(event, isOtherLocation));
         }
-
-        const subject = getEventSubject(event);
-        if (subject) {
-          const subjectSpan = document.createElement('span');
-          subjectSpan.className = event.isCollapsed ? 'event-collapsed' : 'event-subject';
-          subjectSpan.textContent = subject;
-          contentSpan.appendChild(subjectSpan);
-        }
-
-        li.append(timeSpan, contentSpan);
-        ul.appendChild(li);
+      }
+      if (pmbRun > MAX_CONSECUTIVE_PMBS) {
+        ul.appendChild(createCollapsedPmbRow(pmbRun - MAX_CONSECUTIVE_PMBS));
       }
 
       return ul;
     }
 
     async function loadEvents(dateStr) {
-      const dateObj = parseLocalDate(dateStr);
-      const formattedDate = dateObj ? headerDateFormatter.format(dateObj) : dateStr;
-      const isFridaySitting = dateObj?.getDay() === 5;
+      const dateObj = parseDate(dateStr);
+      if (!dateObj) {
+        setAllRegionsStatus(`Invalid date: ${dateStr}`, true);
+        return;
+      }
 
-      pageTitleEl.textContent = `UK Parliament — Order of Business for ${formattedDate}`;
+      pageTitleEl.textContent = `UK Parliament — Order of Business for ${headerDateFormatter.format(dateObj)}`;
       document.title = `UK Parliament — Order of Business (${dateStr})`;
 
-      statusEl.textContent = 'Loading...';
-      statusEl.hidden = false;
-      dashboardEl.hidden = true;
+      setAllRegionsStatus('Loading...');
 
       const url = `https://whatson-api.parliament.uk/calendar/events/list.json?queryParameters.startDate=${encodeURIComponent(dateStr)}&queryParameters.endDate=${encodeURIComponent(dateStr)}`;
 
@@ -491,79 +671,69 @@
           throw new Error(`HTTP ${response.status}`);
         }
         const events = await response.json();
-        statusEl.hidden = true;
-        dashboardEl.hidden = false;
-        renderEvents(Array.isArray(events) ? events : [], isFridaySitting);
+        renderEvents(Array.isArray(events) ? events : []);
       } catch (err) {
-        statusEl.textContent = `Error loading events: ${err.message}`;
+        setAllRegionsStatus(`Error loading events: ${err.message}`, true);
       }
     }
 
-    function renderEvents(events, isFridaySitting) {
-      const commonsMain = [];
-      const commonsWestminsterHall = [];
-      const lordsMain = [];
-      const lordsGrandCommittee = [];
+    function renderEvents(events) {
+      const fixedBuckets = new Map(
+        Object.keys(fixedRegionEls).map(key => [key, []])
+      );
       const otherByLocation = new Map();
 
       for (const event of events) {
         if (event.CancelledDate || EXCLUDED_CATEGORIES.has(event.Category)) continue;
 
-        if (event.House === 'Commons' && event.Type === 'Main Chamber') {
-          commonsMain.push(event);
-        } else if (event.House === 'Commons' && event.Type === 'Westminster Hall') {
-          commonsWestminsterHall.push(event);
-        } else if (event.House === 'Lords' && event.Type === 'Main Chamber') {
-          lordsMain.push(event);
-        } else if (
-          event.House === 'Lords' &&
-          (event.Type === 'Grand Committee' || event.Location?.includes('Grand Committee'))
-        ) {
-          lordsGrandCommittee.push(event);
+        const fixedBucket = fixedBuckets.get(`${event.House}:${event.Type}`);
+        if (fixedBucket) {
+          fixedBucket.push(event);
         } else {
           const loc = getLocation(event);
-          if (!otherByLocation.has(loc)) {
-            otherByLocation.set(loc, []);
+          const locKey = loc.toLowerCase();
+          let group = otherByLocation.get(locKey);
+          if (!group) {
+            group = { title: loc, events: [] };
+            otherByLocation.set(locKey, group);
+          } else if (group.title !== loc) {
+            group.title = toTitleCase(loc);
           }
-          otherByLocation.get(loc).push(event);
+          group.events.push(event);
         }
       }
 
-      document.getElementById('commons-main')
-        .replaceChildren(createEventListElement(commonsMain, isFridaySitting));
-      document.getElementById('commons-westminster-hall')
-        .replaceChildren(createEventListElement(commonsWestminsterHall, isFridaySitting));
-      document.getElementById('lords-main')
-        .replaceChildren(createEventListElement(lordsMain, isFridaySitting));
-      document.getElementById('lords-grand-committee')
-        .replaceChildren(createEventListElement(lordsGrandCommittee, isFridaySitting));
+      for (const [key, el] of Object.entries(fixedRegionEls)) {
+        el.replaceChildren(createEventListElement(fixedBuckets.get(key)));
+      }
 
-      const otherEl = document.getElementById('other-locations');
       if (otherByLocation.size === 0) {
-        otherEl.replaceChildren(createEmptyState());
+        otherLocationsEl.replaceChildren(createStatusElement('No scheduled business'));
         return;
       }
 
       const stack = document.createElement('div');
       stack.className = 'other-rooms-stack';
 
-      const sortedLocations = Array.from(otherByLocation.keys()).sort(compareLocations);
-      for (const location of sortedLocations) {
+      const sortedGroups = Array.from(otherByLocation.values())
+        .toSorted((a, b) => compareLocations(a.title, b.title));
+      for (const group of sortedGroups) {
         const card = document.createElement('div');
         card.className = 'room-card';
 
         const title = document.createElement('h3');
         title.className = 'room-card-title';
-        title.textContent = location;
+        title.textContent = group.title;
 
-        card.append(title, createEventListElement(otherByLocation.get(location), isFridaySitting));
+        card.append(title, createEventListElement(group.events, true));
         stack.appendChild(card);
       }
 
-      otherEl.replaceChildren(stack);
+      otherLocationsEl.replaceChildren(stack);
     }
 
     loadEvents(getSelectedDate());
   </script>
 </body>
+
 </html>
