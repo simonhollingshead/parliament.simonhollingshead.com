@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+  schedule:
+    - cron: '15 7 * * *'
   workflow_dispatch:
 
 permissions:
@@ -13,7 +15,7 @@ permissions:
 
 jobs:
   deploy:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     concurrency:
       group: "pages"
       cancel-in-progress: false
@@ -24,7 +26,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Generate Output Directory
+      - name: Make Output Directory
         run: mkdir out
 
       - name: Cache Fonts
@@ -40,6 +42,9 @@ jobs:
           venv/bin/pip install -r requirements.txt
           venv/bin/python3 gen_annunciators.py
 
+      - name: Fetch Bills
+        run: python3 fetch_bills.py out/bills.json
+
       - name: Fetch Fonts
         if: steps.cache-fonts.outputs.cache-hit != 'true'
         run: |
@@ -53,8 +58,8 @@ jobs:
       - name: Add Fonts to Output Dir
         run: cp fonts/* out/
 
-      - name: Add Day View to Output Dir
-        run: cp dayview.html out/
+      - name: Add Pages and Shared Assets to Output Dir
+        run: cp dayview.html billprogress.html common.css common.js out/
 
       - name: Prepare GitHub Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0

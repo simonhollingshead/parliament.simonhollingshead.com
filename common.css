@@ -1,0 +1,147 @@
+:root {
+  --surface: #ffffff;
+  --bg-muted: #f3f4f6;
+  --border-light: #e5e7eb;
+  --border-muted: #d1d5db;
+  --text-strong: #111827;
+  --text-body: #1f2937;
+  --text-secondary: #374151;
+  --text-muted: #4b5563;
+  --text-subtle: #6b7280;
+  --commons-green: #006548;
+  --commons-bg: #f0f7f5;
+  --commons-border: #bfe0d6;
+  --lords-red: #b50938;
+  --lords-bg: #fdf2f5;
+  --lords-border: #f3c6d3;
+  --joint-commons-mid: #1e4b4c;
+  --joint-lords-mid: #731f44;
+  --unknown-pink: #ff00aa;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: min(1vw, 1.8vh);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 1rem;
+  line-height: 1.38;
+  color: var(--text-body);
+  background-color: var(--surface);
+  display: flex;
+  flex-direction: column;
+}
+
+.page-header {
+  flex: 0 0 auto;
+  padding: 0.75rem 1.1rem 0.3rem 1.1rem;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 1.55rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text-strong);
+}
+
+.chip {
+  display: inline-block;
+  padding: 0.14em 0.65em;
+  margin-right: 0.54em;
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-radius: 999px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.35;
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+
+.chip-unknown,
+.chip-house-commons,
+.chip-house-lords,
+.chip-house-joint-commons,
+.chip-house-joint-lords {
+  border-color: transparent;
+  background-origin: border-box;
+  color: var(--surface);
+  font-weight: 700;
+}
+
+.chip-unknown {
+  background-color: var(--unknown-pink);
+}
+
+.chip-house-commons {
+  background-color: var(--commons-green);
+}
+
+.chip-house-lords {
+  background-color: var(--lords-red);
+}
+
+.chip-house-joint-commons {
+  background: linear-gradient(105deg, var(--commons-green) 50%, var(--joint-commons-mid) 62%, var(--lords-red) 74%);
+}
+
+.chip-house-joint-lords {
+  background: linear-gradient(105deg, var(--lords-red) 50%, var(--joint-lords-mid) 62%, var(--commons-green) 74%);
+}
+
+.chip-party {
+  display: inline-flex;
+  max-width: 100%;
+  padding: 0;
+  border-color: rgba(0, 0, 0, 0.2);
+  font-weight: 700;
+  overflow: hidden;
+}
+
+.party-seg {
+  padding: 0.14em 0.52em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.party-seg:first-child {
+  padding-left: 0.65em;
+  border-top-left-radius: 999px;
+  border-bottom-left-radius: 999px;
+}
+
+.party-seg:last-child {
+  padding-right: 0.65em;
+  border-top-right-radius: 999px;
+  border-bottom-right-radius: 999px;
+}
+
+.party-seg + .party-seg {
+  border-left: 1px solid rgba(0, 0, 0, 0.25);
+}
+
+.party-seg-unknown {
+  background-color: var(--unknown-pink);
+  color: var(--surface);
+}
+
+.region-status {
+  color: var(--text-subtle);
+  font-style: italic;
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.region-status-error {
+  color: #991b1b;
+}

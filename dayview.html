@@ -5,66 +5,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>UK Parliament — Order of Business</title>
+  <link rel="stylesheet" href="./common.css">
   <style>
-    :root {
-      --surface: #ffffff;
-      --bg-muted: #f3f4f6;
-      --border-light: #e5e7eb;
-      --text-strong: #111827;
-      --text-body: #1f2937;
-      --text-secondary: #374151;
-      --text-muted: #4b5563;
-      --text-subtle: #6b7280;
-      --commons-green: #006548;
-      --lords-red: #b50938;
-      --joint-commons-mid: #1e4b4c;
-      --joint-lords-mid: #731f44;
-      --unknown-pink: #ff00aa;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    html {
-      font-size: min(1vw, 1.8vh);
-    }
-
-    body {
-      margin: 0;
-      padding: 0;
-      width: 100vw;
-      height: 100vh;
-      overflow: hidden;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      font-size: 1rem;
-      line-height: 1.38;
-      color: var(--text-body);
-      background-color: var(--surface);
-      display: flex;
-      flex-direction: column;
-    }
-
-    .page-header {
-      flex: 0 0 auto;
-      padding: 0.75rem 1.1rem 0.3rem 1.1rem;
-    }
-
-    .page-title {
-      margin: 0;
-      font-size: 1.55rem;
-      font-weight: 700;
-      letter-spacing: -0.01em;
-      color: var(--text-strong);
-    }
-
     .dashboard-grid {
       flex: 1 1 auto;
       min-height: 0;
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      grid-template-rows: minmax(0, 65fr) minmax(0, 35fr);
-      grid-auto-flow: column;
+      grid-template-rows: minmax(0, 1fr);
       gap: 0.9rem;
       width: 100%;
       padding: 0.5rem 1.1rem 1rem 1.1rem;
@@ -76,25 +24,24 @@
       min-height: 0;
       border-radius: 0.6rem;
       padding: 0.8rem 1rem;
-      border: 1px solid transparent;
+      border: 1px solid var(--region-border);
     }
 
     .region-commons {
-      background-color: #f0f7f5;
-      border-color: #bfe0d6;
+      --region-border: var(--commons-border);
+      background-color: var(--commons-bg);
       color: #00543c;
     }
 
     .region-lords {
-      background-color: #fdf2f5;
-      border-color: #f3c6d3;
+      --region-border: var(--lords-border);
+      background-color: var(--lords-bg);
       color: #8c0b2e;
     }
 
     .region-other {
-      grid-row: span 2;
+      --region-border: var(--border-muted);
       background-color: var(--bg-muted);
-      border-color: #d1d5db;
       color: var(--text-secondary);
     }
 
@@ -104,37 +51,25 @@
       padding-bottom: 0.45rem;
       font-size: 1.2rem;
       font-weight: 700;
-      border-bottom: 1px solid;
-      border-bottom-color: inherit;
+      border-bottom: 1px solid var(--region-border);
     }
 
     .region-body {
       flex: 1 1 auto;
       min-height: 0;
       overflow-y: auto;
-      color: var(--text-body);
     }
 
-    .other-rooms-stack {
-      display: flex;
-      flex-direction: column;
-      gap: 0.7rem;
+    .location-section + .location-section {
+      margin-top: 0.9rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--region-border);
     }
 
-    .room-card {
-      background-color: var(--surface);
-      border: 1px solid var(--border-light);
-      border-radius: 0.45rem;
-      padding: 0.65rem 0.8rem;
-    }
-
-    .room-card-title {
+    .location-title {
       margin: 0 0 0.45rem 0;
-      padding-bottom: 0.35rem;
       font-size: 1rem;
       font-weight: 700;
-      color: var(--text-strong);
-      border-bottom: 1px solid var(--bg-muted);
     }
 
     .event-list {
@@ -167,19 +102,6 @@
 
     .event-content {
       min-width: 0;
-    }
-
-    .chip {
-      display: inline-block;
-      padding: 0.12rem 0.55rem;
-      margin-right: 0.45rem;
-      border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
-      border-radius: 999px;
-      font-size: 0.84rem;
-      font-weight: 600;
-      line-height: 1.35;
-      vertical-align: baseline;
-      white-space: nowrap;
     }
 
     .chip-debate {
@@ -217,69 +139,6 @@
       color: var(--text-secondary);
     }
 
-    .chip-unknown,
-    .chip-house-commons,
-    .chip-house-lords,
-    .chip-house-joint-commons,
-    .chip-house-joint-lords {
-      border-color: transparent;
-      background-origin: border-box;
-      color: var(--surface);
-      font-weight: 700;
-    }
-
-    .chip-unknown {
-      background-color: var(--unknown-pink);
-    }
-
-    .chip-house-commons {
-      background-color: var(--commons-green);
-    }
-
-    .chip-house-lords {
-      background-color: var(--lords-red);
-    }
-
-    .chip-house-joint-commons {
-      background: linear-gradient(105deg, var(--commons-green) 50%, var(--joint-commons-mid) 62%, var(--lords-red) 74%);
-    }
-
-    .chip-house-joint-lords {
-      background: linear-gradient(105deg, var(--lords-red) 50%, var(--joint-lords-mid) 62%, var(--commons-green) 74%);
-    }
-
-    .chip-party {
-      display: inline-flex;
-      padding: 0;
-      border-color: rgba(0, 0, 0, 0.2);
-      font-weight: 700;
-    }
-
-    .party-seg {
-      padding: 0.12rem 0.44rem;
-    }
-
-    .party-seg:first-child {
-      padding-left: 0.55rem;
-      border-top-left-radius: 999px;
-      border-bottom-left-radius: 999px;
-    }
-
-    .party-seg:last-child {
-      padding-right: 0.55rem;
-      border-top-right-radius: 999px;
-      border-bottom-right-radius: 999px;
-    }
-
-    .party-seg + .party-seg {
-      border-left: 1px solid rgba(0, 0, 0, 0.25);
-    }
-
-    .party-seg-unknown {
-      background-color: var(--unknown-pink);
-      color: var(--surface);
-    }
-
     .event-subject {
       color: var(--text-strong);
     }
@@ -287,17 +146,6 @@
     .event-collapsed {
       color: var(--text-muted);
       font-style: italic;
-    }
-
-    .region-status {
-      color: var(--text-subtle);
-      font-style: italic;
-      font-size: 0.95rem;
-      margin: 0;
-    }
-
-    .region-status-error {
-      color: #991b1b;
     }
   </style>
 </head>
@@ -309,60 +157,52 @@
 
   <div class="dashboard-grid">
     <section class="region region-commons">
-      <h2 class="region-title">Commons — Main Chamber</h2>
-      <div id="commons-main" class="region-body">
-        <p class="region-status">Loading...</p>
-      </div>
-    </section>
-
-    <section class="region region-commons">
-      <h2 class="region-title">Commons — Westminster Hall</h2>
-      <div id="commons-westminster-hall" class="region-body">
+      <h2 class="region-title">Commons</h2>
+      <div id="commons" class="region-body">
         <p class="region-status">Loading...</p>
       </div>
     </section>
 
     <section class="region region-lords">
-      <h2 class="region-title">Lords — Main Chamber</h2>
-      <div id="lords-main" class="region-body">
-        <p class="region-status">Loading...</p>
-      </div>
-    </section>
-
-    <section class="region region-lords">
-      <h2 class="region-title">Lords — Grand Committee</h2>
-      <div id="lords-grand-committee" class="region-body">
+      <h2 class="region-title">Lords</h2>
+      <div id="lords" class="region-body">
         <p class="region-status">Loading...</p>
       </div>
     </section>
 
     <section class="region region-other">
       <h2 class="region-title">Other Locations</h2>
-      <div id="other-locations" class="region-body">
+      <div id="other" class="region-body">
         <p class="region-status">Loading...</p>
       </div>
     </section>
   </div>
 
-  <script>
-    const pageTitleEl = document.getElementById('page-title');
-    const fixedRegionEls = {
-      'Commons:Main Chamber': document.getElementById('commons-main'),
-      'Commons:Westminster Hall': document.getElementById('commons-westminster-hall'),
-      'Lords:Main Chamber': document.getElementById('lords-main'),
-      'Lords:Grand Committee': document.getElementById('lords-grand-committee'),
-    };
-    const otherLocationsEl = document.getElementById('other-locations');
+  <script type="module">
+    import {
+      collator,
+      isoDateFormatter,
+      headerDateFormatter,
+      parseDate,
+      createPartyChip,
+      createHouseChip,
+      createStatusElement,
+    } from './common.js';
 
-    const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
-    const isoDateFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' });
-    const headerDateFormatter = new Intl.DateTimeFormat('en-GB', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      timeZone: 'Europe/London',
-    });
+    const pageTitleEl = document.getElementById('page-title');
+    const HOUSE_REGIONS = [
+      {
+        house: 'Commons',
+        el: document.getElementById('commons'),
+        types: ['Main Chamber', 'Westminster Hall'],
+      },
+      {
+        house: 'Lords',
+        el: document.getElementById('lords'),
+        types: ['Main Chamber', 'Grand Committee'],
+      },
+    ];
+    const otherRegionEl = document.getElementById('other');
 
     const PMB_CATEGORY = "Private Members' Bills";
     const PMQ_CATEGORY = "Prime Minister's Question Time";
@@ -390,33 +230,12 @@
       'Introduction(s)': 'chip-procedural',
       'Royal Assent': 'chip-procedural',
     };
-    const PARTY_ABBREVIATIONS = {
-      'Labour': 'LAB',
-      'Labour (Co-op)': 'LAB',
-      'Conservative': 'CON',
-      'Liberal Democrat': 'LD',
-      'Crossbench': 'XB',
-      'Green Party': 'GRN',
-      'Democratic Unionist Party': 'DUP',
-      'Non-affiliated': 'NA',
-      'Independent': 'IND',
-      'Plaid Cymru': 'PC',
-      'Bishops': 'BISH',
-      'Alliance': 'ALL',
-      'Ulster Unionist Party': 'UUP',
-    };
     const MAX_CONSECUTIVE_PMBS = 6;
     const MAX_SUBJECT_LENGTH = 150;
 
     function getSelectedDate() {
       return new URLSearchParams(window.location.search).get('date')?.trim()
         || isoDateFormatter.format(new Date());
-    }
-
-    function parseDate(dateStr) {
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return null;
-      const dateObj = new Date(`${dateStr}T12:00:00Z`);
-      return !Number.isNaN(dateObj.getTime()) && isoDateFormatter.format(dateObj) === dateStr ? dateObj : null;
     }
 
     function getLocation(event) {
@@ -477,82 +296,10 @@
         : text;
     }
 
-    function parseHexColour(rawHex) {
-      let hex = rawHex?.replace(/^#/, '').trim() || '';
-      if (/^[0-9a-f]{3}$/i.test(hex)) {
-        hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
-      }
-      return /^[0-9a-f]{6}$/i.test(hex) ? hex : null;
-    }
-
-    function getContrastTextColour(hex) {
-      const toLinear = offset => {
-        const c = parseInt(hex.slice(offset, offset + 2), 16) / 255;
-        return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-      };
-      const luminance = 0.2126 * toLinear(0) + 0.7152 * toLinear(2) + 0.0722 * toLinear(4);
-      return luminance > 0.34 ? '#000000' : '#ffffff';
-    }
-
-    function createPartyChip(members) {
-      if (!members?.length) return null;
-
-      const seen = new Set();
-      const chip = document.createElement('span');
-      chip.className = 'chip chip-party';
-
-      for (const member of members) {
-        if (!member?.Party) continue;
-        const shortParty = PARTY_ABBREVIATIONS[member.Party];
-        const label = shortParty || member.Party;
-        if (seen.has(label)) continue;
-        seen.add(label);
-
-        const span = document.createElement('span');
-        span.textContent = label;
-        const hex = shortParty ? parseHexColour(member.PartyColour) : null;
-        if (hex) {
-          span.className = 'party-seg';
-          span.style.backgroundColor = `#${hex}`;
-          span.style.color = getContrastTextColour(hex);
-        } else {
-          span.className = 'party-seg party-seg-unknown';
-        }
-        chip.appendChild(span);
-      }
-
-      return seen.size > 0 ? chip : null;
-    }
-
-    function createStatusElement(text, isError = false) {
-      const p = document.createElement('p');
-      p.className = isError ? 'region-status region-status-error' : 'region-status';
-      p.textContent = text;
-      return p;
-    }
-
     function setAllRegionsStatus(text, isError = false) {
-      for (const el of [...Object.values(fixedRegionEls), otherLocationsEl]) {
+      for (const el of [...HOUSE_REGIONS.map(r => r.el), otherRegionEl]) {
         el.replaceChildren(createStatusElement(text, isError));
       }
-    }
-
-    function createHouseChip(event) {
-      const chip = document.createElement('span');
-      if (event.House === 'Commons') {
-        chip.className = 'chip chip-house-commons';
-        chip.textContent = 'HC';
-      } else if (event.House === 'Lords') {
-        chip.className = 'chip chip-house-lords';
-        chip.textContent = 'HL';
-      } else if (event.House === 'Joint' && (event.LeadHouse === 'Commons' || event.LeadHouse === 'Lords')) {
-        chip.className = `chip chip-house-joint-${event.LeadHouse.toLowerCase()}`;
-        chip.textContent = 'JT';
-      } else {
-        chip.className = 'chip chip-unknown';
-        chip.textContent = [event.House, event.LeadHouse].filter(Boolean).join('/') || '?';
-      }
-      return chip;
     }
 
     function createEventRow(event, isOtherLocation) {
@@ -569,7 +316,7 @@
       contentSpan.className = 'event-content';
 
       if (isOtherLocation) {
-        contentSpan.appendChild(createHouseChip(event));
+        contentSpan.appendChild(createHouseChip(event.House, event.LeadHouse));
       }
 
       const category = rewriteCategory(event.Category?.trim() || '');
@@ -580,7 +327,11 @@
         contentSpan.appendChild(chip);
       }
 
-      const partyChip = createPartyChip(event.Members);
+      const partyEntries = (event.Members || []).map(m => ({
+        party: m?.Party,
+        partyColour: m?.PartyColour,
+      }));
+      const partyChip = createPartyChip(partyEntries);
       if (partyChip) {
         contentSpan.appendChild(partyChip);
       }
@@ -651,6 +402,18 @@
       return ul;
     }
 
+    function createLocationSection(titleText, events, isOtherLocation = false) {
+      const section = document.createElement('section');
+      section.className = 'location-section';
+
+      const title = document.createElement('h3');
+      title.className = 'location-title';
+      title.textContent = titleText;
+
+      section.append(title, createEventListElement(events, isOtherLocation));
+      return section;
+    }
+
     async function loadEvents(dateStr) {
       const dateObj = parseDate(dateStr);
       if (!dateObj) {
@@ -678,17 +441,17 @@
     }
 
     function renderEvents(events) {
-      const fixedBuckets = new Map(
-        Object.keys(fixedRegionEls).map(key => [key, []])
+      const houseBuckets = new Map(
+        HOUSE_REGIONS.flatMap(({ house, types }) => types.map(type => [`${house}:${type}`, []]))
       );
       const otherByLocation = new Map();
 
       for (const event of events) {
         if (event.CancelledDate || EXCLUDED_CATEGORIES.has(event.Category)) continue;
 
-        const fixedBucket = fixedBuckets.get(`${event.House}:${event.Type}`);
-        if (fixedBucket) {
-          fixedBucket.push(event);
+        const houseBucket = houseBuckets.get(`${event.House}:${event.Type}`);
+        if (houseBucket) {
+          houseBucket.push(event);
         } else {
           const loc = getLocation(event);
           const locKey = loc.toLowerCase();
@@ -703,33 +466,22 @@
         }
       }
 
-      for (const [key, el] of Object.entries(fixedRegionEls)) {
-        el.replaceChildren(createEventListElement(fixedBuckets.get(key)));
+      for (const { house, el, types } of HOUSE_REGIONS) {
+        el.replaceChildren(
+          ...types.map(type => createLocationSection(type, houseBuckets.get(`${house}:${type}`)))
+        );
       }
 
       if (otherByLocation.size === 0) {
-        otherLocationsEl.replaceChildren(createStatusElement('No scheduled business'));
+        otherRegionEl.replaceChildren(createStatusElement('No scheduled business'));
         return;
       }
 
-      const stack = document.createElement('div');
-      stack.className = 'other-rooms-stack';
-
       const sortedGroups = Array.from(otherByLocation.values())
         .toSorted((a, b) => compareLocations(a.title, b.title));
-      for (const group of sortedGroups) {
-        const card = document.createElement('div');
-        card.className = 'room-card';
-
-        const title = document.createElement('h3');
-        title.className = 'room-card-title';
-        title.textContent = group.title;
-
-        card.append(title, createEventListElement(group.events, true));
-        stack.appendChild(card);
-      }
-
-      otherLocationsEl.replaceChildren(stack);
+      otherRegionEl.replaceChildren(
+        ...sortedGroups.map(group => createLocationSection(group.title, group.events, true))
+      );
     }
 
     loadEvents(getSelectedDate());

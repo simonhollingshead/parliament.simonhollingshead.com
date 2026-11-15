@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UK Parliament — Bill Progress</title>
+  <link rel="stylesheet" href="./common.css">
+  <style>
+    :root {
+      --ra-bg: #f5f0fb;
+      --ra-border: #d8c7f0;
+    }
+
+    .kanban-board {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(0, 1fr);
+      gap: 0.6rem;
+      width: 100%;
+      padding: 0.5rem 1.1rem 1rem 1.1rem;
+    }
+
+    .column {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      background-color: var(--bg-muted);
+      border: 1px solid var(--border-muted);
+      border-radius: 0.6rem;
+      padding: 0.65rem;
+      color: var(--text-secondary);
+    }
+
+    .column-header {
+      flex: 0 0 auto;
+      margin: 0 0 0.55rem 0;
+      padding-bottom: 0.42rem;
+      border-bottom: 1px solid var(--border-muted);
+    }
+
+    .column-kicker {
+      display: block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-subtle);
+      line-height: 1.2;
+      margin-bottom: 0.1rem;
+    }
+
+    .column-title-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0.35rem;
+    }
+
+    .column-title {
+      margin: 0;
+      font-size: 1.02rem;
+      font-weight: 700;
+      line-height: 1.25;
+      color: var(--text-strong);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .column-unknown {
+      border: 2px solid var(--unknown-pink);
+      color: var(--unknown-pink);
+    }
+
+    .column-unknown .column-header {
+      border-bottom-color: currentColor;
+    }
+
+    .column-unknown :is(.column-kicker, .column-title) {
+      color: inherit;
+    }
+
+    .column-count {
+      flex: 0 0 auto;
+      font-size: 0.8rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-subtle);
+    }
+
+    .column-body {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      scrollbar-width: thin;
+    }
+
+    .column .region-status {
+      font-size: 0.88rem;
+    }
+
+    .bill-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.42rem;
+    }
+
+    .bill-card {
+      border-radius: 0.42rem;
+      padding: 0.45rem 0.55rem;
+      border: 1px solid var(--border-light);
+      background-color: var(--surface);
+      color: var(--text-strong);
+    }
+
+    .bill-card .chip {
+      font-size: 0.68rem;
+      line-height: 1.3;
+    }
+
+    .bill-card-commons {
+      background-color: var(--commons-bg);
+      border-color: var(--commons-border);
+    }
+
+    .bill-card-lords {
+      background-color: var(--lords-bg);
+      border-color: var(--lords-border);
+    }
+
+    .bill-card-ra {
+      background-color: var(--ra-bg);
+      border-color: var(--ra-border);
+    }
+
+    .bill-card-unknown {
+      background-color: var(--unknown-pink);
+      border-color: transparent;
+      color: var(--surface);
+    }
+
+    .bill-title {
+      font-size: 0.86rem;
+      font-weight: 600;
+      line-height: 1.28;
+      overflow-wrap: break-word;
+    }
+
+    .bill-title-blurred {
+      filter: blur(0.28rem);
+      user-select: none;
+    }
+
+    .bill-party-row {
+      margin-top: 0.24rem;
+      line-height: 1;
+    }
+
+    .bill-party-row .chip-party {
+      margin-right: 0;
+    }
+
+    .bill-meta {
+      margin-top: 0.22rem;
+      font-size: 0.76rem;
+      line-height: 1.3;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-muted);
+    }
+
+    .bill-meta+.bill-meta {
+      margin-top: 0.08rem;
+    }
+
+    .bill-meta-upcoming {
+      font-weight: 700;
+      color: var(--text-secondary);
+    }
+
+    .bill-card-unknown .bill-meta {
+      color: var(--surface);
+      opacity: 0.92;
+    }
+  </style>
+</head>
+
+<body>
+  <header class="page-header">
+    <h1 id="page-title" class="page-title">UK Parliament — Bill Progress</h1>
+  </header>
+
+  <main id="board" class="kanban-board">
+    <p class="region-status">Loading...</p>
+  </main>
+
+  <script type="module">
+    import {
+      collator,
+      headerDateFormatter,
+      parseDate,
+      createPartyChip,
+      createHouseChip,
+      createStatusElement,
+    } from './common.js';
+
+    const BLURRED_BILL_IDS = new Set([]);
+    const RA_MAX_AGE_DAYS = 365;
+
+    const pageTitleEl = document.getElementById('page-title');
+    const boardEl = document.getElementById('board');
+
+    const shortDateFormatter = new Intl.DateTimeFormat('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      timeZone: 'UTC',
+    });
+    const shortDateWithYearFormatter = new Intl.DateTimeFormat('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      timeZone: 'UTC',
+    });
+
+    const COLUMNS = [
+      { key: '1H:CS', kicker: '1st House', title: 'Committee' },
+      { key: '1H:RS', kicker: '1st House', title: 'Report' },
+      { key: '1H:3R', kicker: '1st House', title: '3rd Reading' },
+      { key: '2H:1R', kicker: '2nd House', title: '1st Reading' },
+      { key: '2H:2R', kicker: '2nd House', title: '2nd Reading' },
+      { key: '2H:CS', kicker: '2nd House', title: 'Committee' },
+      { key: '2H:RS', kicker: '2nd House', title: 'Report' },
+      { key: '2H:3R', kicker: '2nd House', title: '3rd Reading' },
+      { key: 'PINGPONG', kicker: 'Both Houses', title: 'Ping-Pong', optional: true },
+      { key: 'RA', kicker: `Past ${RA_MAX_AGE_DAYS} Days`, title: 'Royal Assent', optional: true },
+      { key: 'UNKNOWN', kicker: 'Unmapped', title: 'Unknown', optional: true },
+    ];
+
+    const VALID_HOUSES = new Set(['Commons', 'Lords']);
+
+    const IGNORED_STAGE_IDS = new Set([
+      // Pre-1st-Reading Private/Hybrid Bill Examiner & Petition stages
+      16, // Lords Examiners
+      17, // Commons Examiners
+      23, // Petition to introduce a Private Bill presented to Parliament
+      41, // Examination for compliance with Standing Orders
+
+      // Carry-over, suspension, and revival mechanics
+      18, // Carry-over motion (Commons)
+      19, // Carry-over motion (Lords)
+      20, // Motion to suspend Bill till next session considered (Commons)
+      21, // Bill reintroduced (Commons)
+      22, // Bill reintroduced (Lords)
+      31, // Motion to suspend Bill till next session approved (Commons)
+      32, // Motion to revive Bill (Commons)
+      33, // Motion to suspend Bill till next session approved (Lords)
+      34, // Motion to revive Bill (Lords)
+    ]);
+
+    const STAGE_ID_TO_SLOT = new Map([
+      // 1st Reading
+      [1, '1R'],  // 1st reading (Lords)
+      [6, '1R'],  // 1st reading (Commons)
+
+      // 2nd Reading
+      [2, '2R'],  // 2nd reading (Lords)
+      [7, '2R'],  // 2nd reading (Commons)
+      [25, '2R'], // Second reading committee (Commons)
+      [30, '2R'], // Second reading committee (Lords)
+
+      // Committee Stage
+      [3, 'CS'],  // Committee stage (Lords)
+      [8, 'CS'],  // Committee stage (Commons)
+      [43, 'CS'], // Select Committee stage (Commons)
+      [46, 'CS'], // Lords Special Public Bill Committee (Lords)
+      [47, 'CS'], // Committal (to a Select Committee) (Commons)
+      [48, 'CS'], // Committee stage (re-committed clauses and schedules) (Commons)
+      [49, 'CS'], // Committee of the whole House (Commons)
+
+      // Report Stage
+      [4, 'RS'],  // Report stage (Lords)
+      [9, 'RS'],  // Report stage (Commons)
+
+      // 3rd Reading (and skipped-committee formalities leading directly to 3R)
+      [5, '3R'],  // 3rd reading (Lords)
+      [10, '3R'], // 3rd reading (Commons)
+      [24, '3R'], // Order of Commitment discharged (Lords)
+      [26, '3R'], // Order of Commitment discharged (Commons)
+      [27, '3R'], // Committee negatived (Lords)
+
+      // Ping-Pong
+      [12, 'PINGPONG'], // Consideration of Lords amendments (Commons)
+      [13, 'PINGPONG'], // Consideration of Commons amendments and / or reasons (Lords)
+      [42, 'PINGPONG'], // Consideration of Lords message (Commons)
+    ]);
+
+    const MS_PER_DAY = 86_400_000;
+
+    function formatShortDate(dateStr, refYear) {
+      const d = parseDate(dateStr);
+      if (!d) return dateStr;
+      return dateStr.slice(0, 4) === refYear
+        ? shortDateFormatter.format(d)
+        : shortDateWithYearFormatter.format(d);
+    }
+
+    function formatBillTitle(bill) {
+      return (bill.shortTitle || '')
+        .replace(/\s*\[HL\]$/i, '')
+        .replace(/\s+Bill$/i, '')
+        .trim();
+    }
+
+    function getSittingDates(bill) {
+      const dates = (bill.currentStage?.stageSittings || [])
+        .map(s => s.date?.slice(0, 10))
+        .filter(Boolean);
+      return [...new Set(dates)].sort();
+    }
+
+    function classifyBill(bill, refDate) {
+      if (bill.billWithdrawn || bill.isDefeated || bill.currentStage === null) {
+        return null;
+      }
+
+      const stage = bill.currentStage;
+      const stageId = stage?.stageId;
+      const origHouse = bill.originatingHouse;
+      const stageHouse = stage?.house;
+
+      if (IGNORED_STAGE_IDS.has(stageId)) {
+        return null;
+      }
+
+      // Royal Assent (stageId 11): include if within RA_MAX_AGE_DAYS, exclude if older
+      if (stageId === 11 && bill.isAct && VALID_HOUSES.has(origHouse) && stageHouse === 'Unassigned') {
+        const raDate = parseDate(getSittingDates(bill).at(-1));
+        if (raDate) {
+          const diffDays = Math.round((refDate.getTime() - raDate.getTime()) / MS_PER_DAY);
+          if (diffDays > RA_MAX_AGE_DAYS) return null;
+          if (diffDays >= 0) return 'RA';
+        }
+      }
+
+      if (VALID_HOUSES.has(origHouse) && VALID_HOUSES.has(stageHouse)) {
+        const isFirstHouse = stageHouse === origHouse;
+
+        // Second House Examination (stageId 44) precedes 2nd House 1st Reading
+        if (!isFirstHouse && stageId === 44) {
+          return '2H:1R';
+        }
+
+        const slot = STAGE_ID_TO_SLOT.get(stageId);
+        if (slot === 'PINGPONG') {
+          return 'PINGPONG';
+        }
+        if (slot) {
+          if (isFirstHouse && (slot === '1R' || slot === '2R')) return null;
+          return `${isFirstHouse ? '1H' : '2H'}:${slot}`;
+        }
+      }
+
+      return 'UNKNOWN';
+    }
+
+    function getBillSortMeta(bill, refDateStr) {
+      const sittings = getSittingDates(bill);
+
+      const upcoming = sittings.filter(d => d >= refDateStr);
+      if (upcoming.length > 0) return { tier: 1, dateKey: upcoming[0], upcoming };
+
+      const past = sittings.findLast(d => d < refDateStr);
+      if (past) return { tier: 2, dateKey: past };
+
+      return { tier: 3, dateKey: bill.lastUpdate || '' };
+    }
+
+    function compareBills(a, b, refDateStr) {
+      const metaA = getBillSortMeta(a, refDateStr);
+      const metaB = getBillSortMeta(b, refDateStr);
+
+      if (metaA.tier !== metaB.tier) {
+        return metaA.tier - metaB.tier;
+      }
+
+      const dateCmp = metaA.tier === 1
+        ? metaA.dateKey.localeCompare(metaB.dateKey)
+        : metaB.dateKey.localeCompare(metaA.dateKey);
+
+      return dateCmp
+        || collator.compare(formatBillTitle(a), formatBillTitle(b))
+        || (a.billId - b.billId);
+    }
+
+    const AGENT_COLOURS = {
+      'The City Remembrancer': '18181b',
+      'Sharpe Pritchard LLP': 'ffffff',
+      'Broadfield Law UK LLP': 'ffffff',
+    };
+
+    function getBillPartyEntries(bill) {
+      const entries = (bill.sponsors || [])
+        .toSorted((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+        .filter(s => s.member?.party)
+        .map(s => ({ party: s.member.party, partyColour: s.member.partyColour }));
+
+      const agentName = bill.agent?.name;
+      if (agentName) {
+        entries.push({ party: agentName, partyColour: AGENT_COLOURS[agentName] });
+      }
+
+      return entries;
+    }
+
+    function createBillCard(bill, colKey, refDateStr) {
+      const cardVariant = colKey === 'UNKNOWN' ? 'unknown'
+        : colKey === 'RA' ? 'ra'
+          : bill.originatingHouse === 'Commons' ? 'commons'
+            : bill.originatingHouse === 'Lords' ? 'lords'
+              : 'unknown';
+
+      const li = document.createElement('li');
+      li.className = `bill-card bill-card-${cardVariant}`;
+
+      const titleDiv = document.createElement('div');
+      titleDiv.className = BLURRED_BILL_IDS.has(bill.billId)
+        ? 'bill-title bill-title-blurred'
+        : 'bill-title';
+      titleDiv.textContent = formatBillTitle(bill) || `Bill #${bill.billId}`;
+      li.appendChild(titleDiv);
+
+      const partyRow = document.createElement('div');
+      partyRow.className = 'bill-party-row';
+      partyRow.appendChild(createPartyChip(getBillPartyEntries(bill), '?'));
+      li.appendChild(partyRow);
+
+      const refYear = refDateStr.slice(0, 4);
+      const sortMeta = getBillSortMeta(bill, refDateStr);
+
+      const metaLines = [];
+      if (colKey === 'UNKNOWN') {
+        const stage = bill.currentStage;
+        const stageLabel = stage ? `#${stage.stageId} ${stage.abbreviation || stage.description || ''}`.trim() : 'no stage';
+        metaLines.push(`${bill.originatingHouse || '?'} → ${bill.currentHouse || '?'} · ${stageLabel}`);
+      } else if (colKey === 'RA') {
+        metaLines.push(`Assented ${formatShortDate(getSittingDates(bill).at(-1), refYear)}`);
+      } else if (sortMeta.tier === 1) {
+        metaLines.push(
+          sortMeta.dateKey === refDateStr
+            ? 'Sitting today'
+            : `Next: ${formatShortDate(sortMeta.dateKey, refYear)}`
+        );
+        for (const laterDate of sortMeta.upcoming.slice(1)) {
+          metaLines.push(`Then: ${formatShortDate(laterDate, refYear)}`);
+        }
+      } else if (sortMeta.tier === 2) {
+        metaLines.push(`Last sat: ${formatShortDate(sortMeta.dateKey, refYear)}`);
+      } else if (colKey === 'PINGPONG') {
+        metaLines.push('Next to act');
+      }
+
+      metaLines.forEach((text, i) => {
+        const metaDiv = document.createElement('div');
+        metaDiv.className = i === 0 && sortMeta.tier === 1 && colKey !== 'RA' && colKey !== 'UNKNOWN'
+          ? 'bill-meta bill-meta-upcoming'
+          : 'bill-meta';
+
+        if (i === 0 && colKey === 'PINGPONG') {
+          metaDiv.appendChild(createHouseChip(bill.currentStage?.house));
+        }
+        metaDiv.appendChild(document.createTextNode(text));
+        li.appendChild(metaDiv);
+      });
+
+      return li;
+    }
+
+    function renderBoard(items, refDate, refDateStr) {
+      if (items.length === 0) {
+        boardEl.replaceChildren(createStatusElement('No active Parliamentary session or bills found'));
+        return;
+      }
+
+      const buckets = new Map(COLUMNS.map(col => [col.key, []]));
+      for (const bill of items) {
+        const key = classifyBill(bill, refDate);
+        if (key) {
+          buckets.get(key).push(bill);
+        }
+      }
+
+      const visibleColumns = COLUMNS.filter(
+        col => !col.optional || buckets.get(col.key).length > 0
+      );
+
+      const frag = document.createDocumentFragment();
+
+      for (const col of visibleColumns) {
+        const colBills = buckets.get(col.key)
+          .toSorted((a, b) => compareBills(a, b, refDateStr));
+
+        const section = document.createElement('section');
+        section.className = col.key === 'UNKNOWN' ? 'column column-unknown' : 'column';
+
+        const header = document.createElement('div');
+        header.className = 'column-header';
+
+        const kicker = document.createElement('span');
+        kicker.className = 'column-kicker';
+        kicker.textContent = col.kicker;
+
+        const titleRow = document.createElement('div');
+        titleRow.className = 'column-title-row';
+
+        const h2 = document.createElement('h2');
+        h2.className = 'column-title';
+        h2.textContent = col.title;
+
+        const count = document.createElement('span');
+        count.className = 'column-count';
+        count.textContent = String(colBills.length);
+
+        titleRow.append(h2, count);
+        header.append(kicker, titleRow);
+
+        const body = document.createElement('div');
+        body.className = 'column-body';
+
+        if (colBills.length === 0) {
+          body.appendChild(createStatusElement('No bills'));
+        } else {
+          const ul = document.createElement('ul');
+          ul.className = 'bill-list';
+          for (const bill of colBills) {
+            ul.appendChild(createBillCard(bill, col.key, refDateStr));
+          }
+          body.appendChild(ul);
+        }
+
+        section.append(header, body);
+        frag.appendChild(section);
+      }
+
+      boardEl.replaceChildren(frag);
+    }
+
+    async function loadBills() {
+      boardEl.replaceChildren(createStatusElement('Loading...'));
+
+      try {
+        const response = await fetch('./bills.json');
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        const refDateStr = data.fetchedDate?.trim() || '';
+        const refDate = parseDate(refDateStr);
+        if (!refDate) {
+          throw new Error(`Invalid fetchedDate in bills.json: ${JSON.stringify(data.fetchedDate)}`);
+        }
+
+        pageTitleEl.textContent = `UK Parliament — Bill Progress as of ${headerDateFormatter.format(refDate)}`;
+        document.title = `UK Parliament — Bill Progress (${refDateStr})`;
+
+        const items = Array.isArray(data.items) ? data.items : [];
+        renderBoard(items, refDate, refDateStr);
+      } catch (err) {
+        boardEl.replaceChildren(createStatusElement(`Error loading bills: ${err.message}`, true));
+      }
+    }
+
+    loadBills();
+  </script>
+</body>
+
+</html>
