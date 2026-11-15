@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 SESSIONS_URL = "https://whatson-api.parliament.uk/calendar/sessions/list.json"
 BILLS_URL = "https://bills-api.parliament.uk/api/v1/Bills"
 TAKE = 1000
-REQUEST_DELAY_SECONDS = 0.2
+REQUEST_DELAY_SECONDS = 1
 DETAIL_FIELDS = ("sponsors", "agent")
 
 
@@ -56,7 +56,11 @@ def enrich_bills(bills: list[dict]):
             for field in DETAIL_FIELDS:
                 bill[field] = detail.get(field)
         except (HTTPError, URLError) as err:
-            print(f"  Warning: failed to fetch bill {bill_id}: {err}", file=sys.stderr, flush=True)
+            print(
+                f"  Warning: failed to fetch bill {bill_id}: {err}",
+                file=sys.stderr,
+                flush=True,
+            )
             bill["sponsors"] = []
             bill["agent"] = None
 
@@ -76,7 +80,9 @@ def main():
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
-    print(f"Wrote {len(data.get('items', []))} bills (sessionId={session_id}) to {out_path}")
+    print(
+        f"Wrote {len(data.get('items', []))} bills (sessionId={session_id}) to {out_path}"
+    )
 
 
 if __name__ == "__main__":
