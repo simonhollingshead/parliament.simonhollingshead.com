@@ -1,3 +1,4 @@
+from collections import Counter
 from datetime import datetime
 import json
 from pathlib import Path
@@ -12,6 +13,21 @@ BILLS_URL = "https://bills-api.parliament.uk/api/v1/Bills"
 TAKE = 1000
 REQUEST_DELAY_SECONDS = 1
 DETAIL_FIELDS = ("sponsors", "agent")
+VALID_HOUSES = {"Commons", "Lords"}
+FIRST_OR_SECOND_READING_STAGE_IDS = {
+    1,  # 1st reading (Lords)
+    2,  # 2nd reading (Lords)
+    6,  # 1st reading (Commons)
+    7,  # 2nd reading (Commons)
+    25,  # Second reading committee (Commons)
+    30,  # Second reading committee (Lords)
+}
+ROYAL_ASSENT_STAGE_ID = 11
+PING_PONG_STAGE_IDS = {
+    12,  # Consideration of Lords amendments (Commons)
+    13,  # Consideration of Commons amendments and / or reasons (Lords)
+    42,  # Consideration of Lords message (Commons)
+}
 
 
 def fetch_json(url: str, retries: int = 2):
@@ -43,14 +59,109 @@ def find_current_session_id(today: str):
     return None
 
 
+def fetch_paged_items(base_url: str) -> list[dict]:
+    all_items: list[dict] = []
+    skip = 0
+
+    while True:
+        time.sleep(REQUEST_DELAY_SECONDS)
+        url = f"{base_url}?Take={TAKE}"
+        if skip:
+            url += f"&Skip={skip}"
+
+        page = fetch_json(url)
+        items = page.get("items") or []
+        all_items.extend(items)
+
+        skip += len(items)
+        total_results = page.get("totalResults") or 0
+        if not items or skip >= total_results:
+            break
+
+    return all_items
+
+
+def fetch_bill_stages(bill_id: int) -> list[dict]:
+    return fetch_paged_items(f"{BILLS_URL}/{bill_id}/Stages")
+
+
+def count_decisions(decisions) -> dict[str, int]:
+    counts: Counter[str] = Counter()
+    for decision in decisions:
+        key = decision if isinstance(decision, str) and decision else "Unknown"
+        counts[key] += 1
+    return dict(counts)
+
+
+def fetch_amendment_decisions(bill_id: int, stage_id: int) -> dict[str, int]:
+    items = fetch_paged_items(f"{BILLS_URL}/{bill_id}/Stages/{stage_id}/Amendments")
+    return count_decisions(item.get("decision") for item in items)
+
+
+def fetch_ping_pong_decisions(bill_id: int, stage_id: int) -> dict[str, int]:
+    items = fetch_paged_items(f"{BILLS_URL}/{bill_id}/Stages/{stage_id}/PingPongItems")
+    return count_decisions(
+        (item.get("motion") or item.get("amendment") or {}).get("decision")
+        for item in items
+    )
+
+
+def is_first_house_early_reading(bill: dict) -> bool:
+    stage = bill.get("currentStage") or {}
+    orig_house = bill.get("originatingHouse")
+    return (
+        orig_house in VALID_HOUSES
+        and stage.get("house") == orig_house
+        and stage.get("stageId") in FIRST_OR_SECOND_READING_STAGE_IDS
+    )
+
+
 def enrich_bills(bills: list[dict]):
-    total = len(bills)
-    for idx, bill in enumerate(bills, start=1):
-        if idx > 1:
-            time.sleep(REQUEST_DELAY_SECONDS)
+    bills_to_enrich = [b for b in bills if not is_first_house_early_reading(b)]
+    skipped = len(bills) - len(bills_to_enrich)
+    if skipped:
+        print(
+            f"Skipping {skipped} 1st House 1R/2R bills; enriching {len(bills_to_enrich)} bills...",
+            flush=True,
+        )
+
+    total = len(bills_to_enrich)
+    for idx, bill in enumerate(bills_to_enrich, start=1):
+        time.sleep(REQUEST_DELAY_SECONDS)
 
         bill_id = bill.get("billId")
-        print(f"[{idx}/{total}] Fetching details for bill {bill_id}...", flush=True)
+        stage = bill.get("currentStage") or {}
+        stage_id = stage.get("id")
+        stage_type_id = stage.get("stageId")
+        is_ra = stage_type_id == ROYAL_ASSENT_STAGE_ID
+        is_ping_pong = stage_type_id in PING_PONG_STAGE_IDS
+        has_stage_sittings = any(
+            s.get("date") for s in (stage.get("stageSittings") or [])
+        )
+        needs_stages = stage_id is not None and not is_ra and not has_stage_sittings
+        stages_note = " + stage history" if needs_stages else ""
+
+        if stage_id is None:
+            print(
+                f"[{idx}/{total}] Fetching details for bill {bill_id} (no current stage)...",
+                flush=True,
+            )
+        elif is_ra:
+            print(
+                f"[{idx}/{total}] Fetching details for bill {bill_id} (Royal Assent; skipping amendments)...",
+                flush=True,
+            )
+        elif is_ping_pong:
+            print(
+                f"[{idx}/{total}] Fetching details and ping-pong items{stages_note} (stage {stage_id}) for bill {bill_id}...",
+                flush=True,
+            )
+        else:
+            print(
+                f"[{idx}/{total}] Fetching details and amendments{stages_note} (stage {stage_id}) for bill {bill_id}...",
+                flush=True,
+            )
+
         try:
             detail = fetch_json(f"{BILLS_URL}/{bill_id}")
             for field in DETAIL_FIELDS:
@@ -63,6 +174,36 @@ def enrich_bills(bills: list[dict]):
             )
             bill["sponsors"] = []
             bill["agent"] = None
+
+        if stage_id is None or is_ra:
+            bill["amendmentDecisions"] = {}
+        else:
+            fetch_fn = (
+                fetch_ping_pong_decisions
+                if is_ping_pong
+                else fetch_amendment_decisions
+            )
+            try:
+                bill["amendmentDecisions"] = fetch_fn(bill_id, stage_id)
+            except (HTTPError, URLError) as err:
+                kind = "ping-pong items" if is_ping_pong else "amendments"
+                print(
+                    f"  Warning: failed to fetch {kind} for bill {bill_id} stage {stage_id}: {err}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                bill["amendmentDecisions"] = {}
+
+        if needs_stages:
+            try:
+                bill["stages"] = fetch_bill_stages(bill_id)
+            except (HTTPError, URLError) as err:
+                print(
+                    f"  Warning: failed to fetch stages for bill {bill_id}: {err}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                bill["stages"] = []
 
 
 def main():

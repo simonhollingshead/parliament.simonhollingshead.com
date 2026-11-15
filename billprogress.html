@@ -157,13 +157,67 @@
       user-select: none;
     }
 
-    .bill-party-row {
+    .bill-chips {
       margin-top: 0.24rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.28rem;
       line-height: 1;
     }
 
-    .bill-party-row .chip-party {
+    .bill-chips .chip {
       margin-right: 0;
+    }
+
+    .chip-amendments {
+      display: inline-flex;
+      max-width: 100%;
+      padding: 0;
+      border-color: rgba(0, 0, 0, 0.2);
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      overflow: hidden;
+    }
+
+    .amendment-seg {
+      padding: 0.14em 0.52em;
+    }
+
+    .amendment-seg:first-child {
+      padding-left: 0.65em;
+      border-top-left-radius: 999px;
+      border-bottom-left-radius: 999px;
+    }
+
+    .amendment-seg:last-child {
+      padding-right: 0.65em;
+      border-top-right-radius: 999px;
+      border-bottom-right-radius: 999px;
+    }
+
+    .amendment-seg+.amendment-seg {
+      border-left: 1px solid rgba(0, 0, 0, 0.25);
+    }
+
+    .amendment-seg-successful {
+      background-color: #bbf7d0;
+      color: #14532d;
+    }
+
+    .amendment-seg-pending {
+      background-color: var(--border-light);
+      color: var(--text-secondary);
+    }
+
+    .amendment-seg-failed {
+      background-color: #fecaca;
+      color: #7f1d1d;
+    }
+
+    .amendment-seg-unknown {
+      background-color: var(--unknown-pink);
+      color: var(--surface);
     }
 
     .bill-meta {
@@ -323,6 +377,16 @@
       return [...new Set(dates)].sort();
     }
 
+    function getPreviousStageSittingDates(bill) {
+      const currentId = bill.currentStage?.id;
+      const dates = (bill.stages || [])
+        .filter(stage => stage && stage.id !== currentId && !IGNORED_STAGE_IDS.has(stage.stageId))
+        .flatMap(stage => stage.stageSittings || [])
+        .map(s => s.date?.slice(0, 10))
+        .filter(Boolean);
+      return [...new Set(dates)].sort();
+    }
+
     function classifyBill(bill, refDate) {
       if (bill.billWithdrawn || bill.isDefeated || bill.currentStage === null) {
         return null;
@@ -374,7 +438,8 @@
       const upcoming = sittings.filter(d => d >= refDateStr);
       if (upcoming.length > 0) return { tier: 1, dateKey: upcoming[0], upcoming };
 
-      const past = sittings.findLast(d => d < refDateStr);
+      const past = sittings.findLast(d => d < refDateStr)
+        || getPreviousStageSittingDates(bill).findLast(d => d <= refDateStr);
       if (past) return { tier: 2, dateKey: past };
 
       return { tier: 3, dateKey: bill.lastUpdate || '' };
@@ -417,6 +482,60 @@
       return entries;
     }
 
+    const AMENDMENT_DECISION_BUCKETS = new Map([
+      // Successful: takes effect on the Bill
+      ['Agreed', 'successful'],
+      ['AgreedOnDivision', 'successful'],
+      ['NotStoodPart', 'successful'],
+
+      // Pending: no final determination yet
+      ['NoDecision', 'pending'],
+      ['QuestionProposed', 'pending'],
+
+      // Failed / rejected: will not take effect in this stage
+      ['Disagreed', 'failed'],
+      ['NegativedOnDivision', 'failed'],
+      ['StoodPart', 'failed'],
+      ['Withdrawn', 'failed'],
+      ['WithdrawnBeforeDebate', 'failed'],
+      ['NotMoved', 'failed'],
+      ['NotSelected', 'failed'],
+      ['NotCalled', 'failed'],
+      ['Preempted', 'failed'],
+    ]);
+
+    function createAmendmentChip(bill) {
+      const decisions = bill.amendmentDecisions;
+      if (!decisions) return null;
+
+      const totals = { successful: 0, pending: 0, failed: 0, unknown: 0 };
+      for (const [decision, count] of Object.entries(decisions)) {
+        if (!count) continue;
+        const bucket = AMENDMENT_DECISION_BUCKETS.get(decision) || 'unknown';
+        totals[bucket] += count;
+      }
+
+      const total = totals.successful + totals.pending + totals.failed + totals.unknown;
+      if (total === 0) return null;
+
+      const chip = document.createElement('span');
+      chip.className = 'chip chip-amendments';
+
+      const segments = ['successful', 'pending', 'failed'];
+      if (totals.unknown > 0) {
+        segments.push('unknown');
+      }
+
+      for (const key of segments) {
+        const seg = document.createElement('span');
+        seg.className = `amendment-seg amendment-seg-${key}`;
+        seg.textContent = String(totals[key]);
+        chip.appendChild(seg);
+      }
+
+      return chip;
+    }
+
     function createBillCard(bill, colKey, refDateStr) {
       const cardVariant = colKey === 'UNKNOWN' ? 'unknown'
         : colKey === 'RA' ? 'ra'
@@ -434,10 +553,14 @@
       titleDiv.textContent = formatBillTitle(bill) || `Bill #${bill.billId}`;
       li.appendChild(titleDiv);
 
-      const partyRow = document.createElement('div');
-      partyRow.className = 'bill-party-row';
-      partyRow.appendChild(createPartyChip(getBillPartyEntries(bill), '?'));
-      li.appendChild(partyRow);
+      const chipRow = document.createElement('div');
+      chipRow.className = 'bill-chips';
+      chipRow.appendChild(createPartyChip(getBillPartyEntries(bill), '?'));
+      const amendmentChip = createAmendmentChip(bill);
+      if (amendmentChip) {
+        chipRow.appendChild(amendmentChip);
+      }
+      li.appendChild(chipRow);
 
       const refYear = refDateStr.slice(0, 4);
       const sortMeta = getBillSortMeta(bill, refDateStr);
@@ -458,10 +581,13 @@
         for (const laterDate of sortMeta.upcoming.slice(1)) {
           metaLines.push(`Then: ${formatShortDate(laterDate, refYear)}`);
         }
-      } else if (sortMeta.tier === 2) {
-        metaLines.push(`Last sat: ${formatShortDate(sortMeta.dateKey, refYear)}`);
-      } else if (colKey === 'PINGPONG') {
-        metaLines.push('Next to act');
+      } else {
+        if (colKey === 'PINGPONG') {
+          metaLines.push('Next to act');
+        }
+        if (sortMeta.tier === 2) {
+          metaLines.push(`Last sat: ${formatShortDate(sortMeta.dateKey, refYear)}`);
+        }
       }
 
       metaLines.forEach((text, i) => {
