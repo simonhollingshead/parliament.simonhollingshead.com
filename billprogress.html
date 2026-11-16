@@ -573,11 +573,7 @@
       } else if (colKey === 'RA') {
         metaLines.push(`Assented ${formatShortDate(getSittingDates(bill).at(-1), refYear)}`);
       } else if (sortMeta.tier === 1) {
-        metaLines.push(
-          sortMeta.dateKey === refDateStr
-            ? 'Sitting today'
-            : `Next: ${formatShortDate(sortMeta.dateKey, refYear)}`
-        );
+        metaLines.push(`Next: ${formatShortDate(sortMeta.dateKey, refYear)}`);
         for (const laterDate of sortMeta.upcoming.slice(1)) {
           metaLines.push(`Then: ${formatShortDate(laterDate, refYear)}`);
         }
