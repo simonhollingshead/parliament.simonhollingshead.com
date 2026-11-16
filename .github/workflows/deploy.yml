@@ -5,7 +5,7 @@ on:
     branches:
       - main
   schedule:
-    - cron: '15 7 * * *'
+    - cron: '23 6,10,14,18 * * *'
   workflow_dispatch:
 
 permissions:
@@ -13,12 +13,50 @@ permissions:
   pages: write
   id-token: write
 
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
 jobs:
-  deploy:
+  check:
     runs-on: ubuntu-latest
-    concurrency:
-      group: "pages"
-      cancel-in-progress: false
+    outputs:
+      should_deploy: ${{ steps.gate.outputs.should_deploy }}
+      cache_key: ${{ steps.date.outputs.cache_key }}
+      cache_hit: ${{ steps.daily-cache.outputs.cache-hit }}
+    steps:
+      - name: Compute Daily Cache Key
+        id: date
+        # Business may be updated in the early-morning before parliament sits - we don't want a midnight
+        # run to suppress an early-morning run.
+        run: echo "cache_key=deployed-$(TZ=Europe/London date -d '5 hours ago' +%F)" >> "$GITHUB_OUTPUT"
+
+      - name: Check Daily Deploy Cache
+        id: daily-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .last-deploy
+          key: ${{ steps.date.outputs.cache_key }}
+          lookup-only: true
+
+      - name: Decide Whether to Deploy
+        id: gate
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          CACHE_HIT: ${{ steps.daily-cache.outputs.cache-hit }}
+          CACHE_KEY: ${{ steps.date.outputs.cache_key }}
+        run: |
+          if [ "$EVENT_NAME" = "schedule" ] && [ "$CACHE_HIT" = "true" ]; then
+            echo "Already deployed for $CACHE_KEY; skipping scheduled run."
+            echo "should_deploy=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy:
+    needs: check
+    if: needs.check.outputs.should_deploy == 'true'
+    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -70,4 +108,16 @@ jobs:
           path: 'out/'
 
       - name: Deploy
+        id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+
+      - name: Create Daily Deploy Marker
+        if: needs.check.outputs.cache_hit != 'true'
+        run: touch .last-deploy
+
+      - name: Save Daily Deploy Cache
+        if: needs.check.outputs.cache_hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .last-deploy
+          key: ${{ needs.check.outputs.cache_key }}
