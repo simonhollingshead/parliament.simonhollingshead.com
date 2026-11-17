@@ -1,10 +1,11 @@
 from collections import Counter
 from datetime import datetime
+from http.client import HTTPException
 import json
 from pathlib import Path
 import sys
 import time
-from urllib.error import HTTPError, URLError
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 
@@ -12,6 +13,7 @@ SESSIONS_URL = "https://whatson-api.parliament.uk/calendar/sessions/list.json"
 BILLS_URL = "https://bills-api.parliament.uk/api/v1/Bills"
 TAKE = 1000
 REQUEST_DELAY_SECONDS = 1
+REQUEST_TIMEOUT_SECONDS = 60
 DETAIL_FIELDS = ("sponsors", "agent")
 VALID_HOUSES = {"Commons", "Lords"}
 FIRST_OR_SECOND_READING_STAGE_IDS = {
@@ -28,9 +30,11 @@ PING_PONG_STAGE_IDS = {
     13,  # Consideration of Commons amendments and / or reasons (Lords)
     42,  # Consideration of Lords message (Commons)
 }
+TRANSIENT_HTTP_STATUSES = {408, 429, 500, 502, 503, 504}
+FETCH_ERRORS = (OSError, HTTPException, json.JSONDecodeError)
 
 
-def fetch_json(url: str, retries: int = 2):
+def fetch_json(url: str, retries: int = 3):
     req = Request(
         url,
         headers={
@@ -40,12 +44,28 @@ def fetch_json(url: str, retries: int = 2):
     )
     for attempt in range(retries + 1):
         try:
-            with urlopen(req, timeout=30) as resp:
+            with urlopen(req, timeout=REQUEST_TIMEOUT_SECONDS) as resp:
                 return json.loads(resp.read().decode("utf-8"))
-        except (HTTPError, URLError) as err:
-            status = getattr(err, "code", None)
-            if attempt < retries and status in (None, 429, 500, 502, 503, 504):
-                time.sleep(1.5 * (attempt + 1))
+        except HTTPError as err:
+            if attempt < retries and err.code in TRANSIENT_HTTP_STATUSES:
+                delay = 2 ** (attempt + 1)
+                print(
+                    f"  HTTP {err.code} for {url}; retrying in {delay}s ({attempt + 1}/{retries})...",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                time.sleep(delay)
+                continue
+            raise
+        except FETCH_ERRORS as err:
+            if attempt < retries:
+                delay = 2 ** (attempt + 1)
+                print(
+                    f"  Fetch error ({err}) for {url}; retrying in {delay}s ({attempt + 1}/{retries})...",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                time.sleep(delay)
                 continue
             raise
 
@@ -166,7 +186,7 @@ def enrich_bills(bills: list[dict]):
             detail = fetch_json(f"{BILLS_URL}/{bill_id}")
             for field in DETAIL_FIELDS:
                 bill[field] = detail.get(field)
-        except (HTTPError, URLError) as err:
+        except FETCH_ERRORS as err:
             print(
                 f"  Warning: failed to fetch bill {bill_id}: {err}",
                 file=sys.stderr,
@@ -179,13 +199,11 @@ def enrich_bills(bills: list[dict]):
             bill["amendmentDecisions"] = {}
         else:
             fetch_fn = (
-                fetch_ping_pong_decisions
-                if is_ping_pong
-                else fetch_amendment_decisions
+                fetch_ping_pong_decisions if is_ping_pong else fetch_amendment_decisions
             )
             try:
                 bill["amendmentDecisions"] = fetch_fn(bill_id, stage_id)
-            except (HTTPError, URLError) as err:
+            except FETCH_ERRORS as err:
                 kind = "ping-pong items" if is_ping_pong else "amendments"
                 print(
                     f"  Warning: failed to fetch {kind} for bill {bill_id} stage {stage_id}: {err}",
@@ -197,7 +215,7 @@ def enrich_bills(bills: list[dict]):
         if needs_stages:
             try:
                 bill["stages"] = fetch_bill_stages(bill_id)
-            except (HTTPError, URLError) as err:
+            except FETCH_ERRORS as err:
                 print(
                     f"  Warning: failed to fetch stages for bill {bill_id}: {err}",
                     file=sys.stderr,
