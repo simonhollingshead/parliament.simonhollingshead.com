@@ -30,6 +30,17 @@ PING_PONG_STAGE_IDS = {
     13,  # Consideration of Commons amendments and / or reasons (Lords)
     42,  # Consideration of Lords message (Commons)
 }
+
+PROCEDURAL_STAGE_IDS = {
+    14,  # Programme motion (Commons)
+    15,  # Money resolution (Commons)
+    28,  # Guillotine motion (Commons)
+    29,  # Allocation of time motion (Commons)
+    35,  # Instruction to Committee on the Bill (Lords)
+    36,  # Ways and Means resolution (Commons)
+    37,  # Instruction (Commons)
+    50,  # Power of public bill committee to send for persons, papers and records (Commons)
+}
 TRANSIENT_HTTP_STATUSES = {408, 429, 500, 502, 503, 504}
 FETCH_ERRORS = (OSError, HTTPException, json.JSONDecodeError)
 
@@ -136,6 +147,18 @@ def is_first_house_early_reading(bill: dict) -> bool:
     )
 
 
+def resolve_effective_stage(stages: list[dict]) -> dict | None:
+    substantive = [
+        s for s in stages if s and s.get("stageId") not in PROCEDURAL_STAGE_IDS
+    ]
+    if not substantive:
+        return None
+    return max(
+        substantive,
+        key=lambda s: (s.get("sortOrder") or 0, s.get("id") or 0),
+    )
+
+
 def enrich_bills(bills: list[dict]):
     bills_to_enrich = [b for b in bills if not is_first_house_early_reading(b)]
     skipped = len(bills) - len(bills_to_enrich)
@@ -147,38 +170,82 @@ def enrich_bills(bills: list[dict]):
 
     total = len(bills_to_enrich)
     for idx, bill in enumerate(bills_to_enrich, start=1):
-        time.sleep(REQUEST_DELAY_SECONDS)
-
         bill_id = bill.get("billId")
         stage = bill.get("currentStage") or {}
-        stage_id = stage.get("id")
         stage_type_id = stage.get("stageId")
+        prefix = f"[{idx}/{total}] "
+
+        if stage_type_id in PROCEDURAL_STAGE_IDS:
+            print(
+                f"{prefix}Bill {bill_id} has procedural currentStage "
+                f"(#{stage_type_id} {stage.get('description')}); fetching stage history to resolve...",
+                flush=True,
+            )
+            prefix = "  "
+            try:
+                stages = fetch_bill_stages(bill_id)
+                bill["stages"] = stages
+                resolved = resolve_effective_stage(stages)
+                if resolved:
+                    bill["currentStage"] = resolved
+                    if resolved.get("house"):
+                        bill["currentHouse"] = resolved["house"]
+                    stage = resolved
+                    stage_type_id = stage.get("stageId")
+                    print(
+                        f"{prefix}Resolved bill {bill_id} to stage {stage.get('id')} "
+                        f"(#{stage_type_id} {stage.get('description')}).",
+                        flush=True,
+                    )
+            except FETCH_ERRORS as err:
+                print(
+                    f"  Warning: failed to fetch stages for bill {bill_id}: {err}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                bill["stages"] = []
+
+            if is_first_house_early_reading(bill):
+                print(
+                    f"{prefix}Skipping bill {bill_id} (resolved to 1st House 1R/2R).",
+                    flush=True,
+                )
+                continue
+
+        time.sleep(REQUEST_DELAY_SECONDS)
+
+        stage_id = stage.get("id")
         is_ra = stage_type_id == ROYAL_ASSENT_STAGE_ID
         is_ping_pong = stage_type_id in PING_PONG_STAGE_IDS
         has_stage_sittings = any(
             s.get("date") for s in (stage.get("stageSittings") or [])
         )
-        needs_stages = stage_id is not None and not is_ra and not has_stage_sittings
+        needs_stages = (
+            stage_id is not None
+            and not is_ra
+            and not has_stage_sittings
+            and "stages" not in bill
+        )
         stages_note = " + stage history" if needs_stages else ""
 
         if stage_id is None:
             print(
-                f"[{idx}/{total}] Fetching details for bill {bill_id} (no current stage)...",
+                f"{prefix}Fetching details for bill {bill_id} (no current stage)...",
                 flush=True,
             )
         elif is_ra:
             print(
-                f"[{idx}/{total}] Fetching details for bill {bill_id} (Royal Assent; skipping amendments)...",
+                f"{prefix}Fetching details for bill {bill_id} (Royal Assent; skipping amendments)...",
                 flush=True,
             )
         elif is_ping_pong:
             print(
-                f"[{idx}/{total}] Fetching details and ping-pong items{stages_note} (stage {stage_id}) for bill {bill_id}...",
+                f"{prefix}Fetching details and ping-pong items{stages_note} (stage {stage_id}) for bill {bill_id}...",
                 flush=True,
             )
         else:
             print(
-                f"[{idx}/{total}] Fetching details and amendments{stages_note} (stage {stage_id}) for bill {bill_id}...",
+                f"{prefix}Fetching details and amendments{stages_note} (stage {stage_id}) for bill {bill_id}...",
                 flush=True,
             )
 
