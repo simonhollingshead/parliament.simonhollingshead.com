@@ -18,15 +18,25 @@ export const PARTY_ABBREVIATIONS = {
   'Democratic Unionist Party': 'DUP',
   'Non-affiliated': 'NA',
   'Independent': 'IND',
+  'Conservative Independent': 'IND',
   'Plaid Cymru': 'PC',
-  'Bishops': 'BSH',
-  'Alliance': 'ALL',
+  'Bishops': 'BSHP',
+  'Alliance': 'APNI',
   'Ulster Unionist Party': 'UUP',
   'Scottish National Party': 'SNP',
-  'Reform UK': 'REF',
+  'Reform UK': 'RUK',
+  'Sinn Féin': 'SF',
+  'Social Democratic & Labour Party': 'SDLP',
+  'Traditional Unionist Voice': 'TUV',
+  'Your Party': 'YP',
+  'Restore Britain': 'RB',
   'The City Remembrancer': 'CTY',
   'Sharpe Pritchard LLP': 'A:SP',
   'Broadfield Law UK LLP': 'A:BL',
+};
+
+export const PARTY_FALLBACK_COLOURS = {
+  'Non-affiliated': '52525b',
 };
 
 export function parseDate(dateStr) {
@@ -66,7 +76,9 @@ export function createPartyChip(entries, fallbackLabel = null) {
 
     const span = document.createElement('span');
     span.textContent = label;
-    const hex = shortParty ? parseHexColour(entry.partyColour) : null;
+    const hex = shortParty
+      ? parseHexColour(entry.partyColour || PARTY_FALLBACK_COLOURS[entry.party])
+      : null;
     if (hex) {
       span.className = 'party-seg';
       span.style.backgroundColor = `#${hex}`;
