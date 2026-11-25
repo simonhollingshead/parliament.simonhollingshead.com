@@ -60,7 +60,7 @@
       overflow-y: auto;
     }
 
-    .location-section + .location-section {
+    .location-section+.location-section {
       margin-top: 0.9rem;
       padding-top: 0.75rem;
       border-top: 1px solid var(--region-border);
@@ -276,6 +276,7 @@
       if (/ debate$/i.test(category)) return 'Debate';
       if (/ statement$/i.test(category)) return 'Statement';
       if (/^motion /i.test(category)) return 'Motion';
+      if (/^consideration of (?:lords|commons) /i.test(category)) return 'Legislation';
       return category;
     }
 
