@@ -401,13 +401,20 @@
         return null;
       }
 
-      // Royal Assent (stageId 11): include if within RA_MAX_AGE_DAYS, exclude if older
-      if (stageId === 11 && bill.isAct && VALID_HOUSES.has(origHouse) && stageHouse === 'Unassigned') {
-        const raDate = parseDate(getSittingDates(bill).at(-1));
-        if (raDate) {
-          const diffDays = Math.round((refDate.getTime() - raDate.getTime()) / MS_PER_DAY);
-          if (diffDays > RA_MAX_AGE_DAYS) return null;
-          if (diffDays >= 0) return 'RA';
+      // Royal Assent (stageId 11): awaiting assent (no date or upcoming) or assented within RA_MAX_AGE_DAYS
+      if (stageId === 11 && VALID_HOUSES.has(origHouse) && stageHouse === 'Unassigned') {
+        const sittings = getSittingDates(bill);
+        if (!bill.isAct) {
+          if (sittings.length === 0) return 'RA';
+          const raDate = parseDate(sittings.at(-1));
+          if (raDate && raDate.getTime() >= refDate.getTime()) return 'RA';
+        } else {
+          const raDate = parseDate(sittings.at(-1));
+          if (raDate) {
+            const diffDays = Math.round((refDate.getTime() - raDate.getTime()) / MS_PER_DAY);
+            if (diffDays > RA_MAX_AGE_DAYS) return null;
+            if (diffDays >= 0) return 'RA';
+          }
         }
       }
 
@@ -445,7 +452,19 @@
       return { tier: 3, dateKey: bill.lastUpdate || '' };
     }
 
-    function compareBills(a, b, refDateStr) {
+    function compareBills(a, b, refDateStr, colKey) {
+      if (colKey === 'RA') {
+        const actCmp = Number(Boolean(a.isAct)) - Number(Boolean(b.isAct));
+        if (actCmp !== 0) return actCmp;
+        if (a.isAct) {
+          const dateA = getSittingDates(a).at(-1) || '';
+          const dateB = getSittingDates(b).at(-1) || '';
+          return dateB.localeCompare(dateA)
+            || collator.compare(formatBillTitle(a), formatBillTitle(b))
+            || (a.billId - b.billId);
+        }
+      }
+
       const metaA = getBillSortMeta(a, refDateStr);
       const metaB = getBillSortMeta(b, refDateStr);
 
@@ -537,8 +556,9 @@
     }
 
     function createBillCard(bill, colKey, refDateStr) {
+      const isAssented = colKey === 'RA' && bill.isAct;
       const cardVariant = colKey === 'UNKNOWN' ? 'unknown'
-        : colKey === 'RA' ? 'ra'
+        : isAssented ? 'ra'
           : bill.originatingHouse === 'Commons' ? 'commons'
             : bill.originatingHouse === 'Lords' ? 'lords'
               : 'unknown';
@@ -570,13 +590,15 @@
         const stage = bill.currentStage;
         const stageLabel = stage ? `#${stage.stageId} ${stage.abbreviation || stage.description || ''}`.trim() : 'no stage';
         metaLines.push(`${bill.originatingHouse || '?'} → ${bill.currentHouse || '?'} · ${stageLabel}`);
-      } else if (colKey === 'RA') {
+      } else if (isAssented) {
         metaLines.push(`Assented ${formatShortDate(getSittingDates(bill).at(-1), refYear)}`);
       } else if (sortMeta.tier === 1) {
         metaLines.push(`Next: ${formatShortDate(sortMeta.dateKey, refYear)}`);
         for (const laterDate of sortMeta.upcoming.slice(1)) {
           metaLines.push(`Then: ${formatShortDate(laterDate, refYear)}`);
         }
+      } else if (colKey === 'RA') {
+        metaLines.push('Awaiting assent');
       } else {
         if (colKey === 'PINGPONG') {
           metaLines.push('Next to act');
@@ -588,7 +610,7 @@
 
       metaLines.forEach((text, i) => {
         const metaDiv = document.createElement('div');
-        metaDiv.className = i === 0 && sortMeta.tier === 1 && colKey !== 'RA' && colKey !== 'UNKNOWN'
+        metaDiv.className = i === 0 && sortMeta.tier === 1 && !isAssented && colKey !== 'UNKNOWN'
           ? 'bill-meta bill-meta-upcoming'
           : 'bill-meta';
 
@@ -624,7 +646,7 @@
 
       for (const col of visibleColumns) {
         const colBills = buckets.get(col.key)
-          .toSorted((a, b) => compareBills(a, b, refDateStr));
+          .toSorted((a, b) => compareBills(a, b, refDateStr, col.key));
 
         const section = document.createElement('section');
         section.className = col.key === 'UNKNOWN' ? 'column column-unknown' : 'column';
